@@ -49,6 +49,31 @@ def test_successful_completion(mock_model_name, mock_api_key, mock_completion, m
     )
 
 @patch("prism_reviewer.integrations.litellm_client.litellm.completion")
+@patch.object(Config, "llm_api_key", return_value="env-api-key")
+@patch.object(Config, "llm_model_name", return_value="env-model-name")
+def test_successful_completion_with_model_override(mock_model_name, mock_api_key, mock_completion, mock_config):
+    # Setup mock response
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = '{"findings": ["issue2"]}'
+    mock_response.choices = [mock_choice]
+    mock_completion.return_value = mock_response
+
+    client = ResilientLLMClient(mock_config)
+    messages = [{"role": "user", "content": "hello"}]
+    result = client.completion_with_retry(messages, model="custom-override-model")
+
+    assert result == '{"findings": ["issue2"]}'
+    mock_completion.assert_called_once_with(
+        model="custom-override-model",
+        messages=messages,
+        api_key="env-api-key",
+        response_format={"type": "json_object"},
+        temperature=0.0,
+        seed=1337
+    )
+
+@patch("prism_reviewer.integrations.litellm_client.litellm.completion")
 @patch.object(Config, "llm_api_key", return_value="dummy-key")
 @patch.object(Config, "llm_model_name", return_value="dummy-model")
 @patch("prism_reviewer.integrations.litellm_client.time.sleep")

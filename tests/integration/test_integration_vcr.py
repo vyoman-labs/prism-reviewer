@@ -138,19 +138,16 @@ integration_vcr = vcr.VCR(
 @pytest.mark.anyio
 @patch.object(Config, "llm_api_key")
 @patch.object(Config, "llm_model_name")
-@patch.object(Config, "llm_reasoning_effort")
-def test_litellm_client_integration(mock_reasoning: Any, mock_model: Any, mock_key: Any) -> None:
+def test_litellm_client_integration(mock_model: Any, mock_key: Any) -> None:
     """
     Tests ResilientLLMClient completion utilizing vcrpy to mock OpenRouter completion.
 
     Args:
-        mock_reasoning: Mock for Config.llm_reasoning_effort.
         mock_model: Mock for Config.llm_model_name.
         mock_key: Mock for Config.llm_api_key.
     """
     mock_key.return_value = REAL_OPENROUTER_KEY or DUMMY_OPENROUTER_KEY
     mock_model.return_value = "openrouter/google/gemini-2.5-flash"
-    mock_reasoning.return_value = ""
 
     config_dict: Dict[str, Any] = {
         "llm": {

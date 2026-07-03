@@ -11,15 +11,14 @@ from prism_reviewer.integrations.litellm_client import ResilientLLMClient
 def mock_config():
     """Ensures Config settings are mocked clean for each test."""
     with patch.object(Config, "llm_api_key", return_value="fake_key"), \
-         patch.object(Config, "llm_model_name", return_value="fake-model"), \
-         patch.object(Config, "llm_reasoning_effort", return_value="medium"):
+         patch.object(Config, "llm_model_name", return_value="fake-model"):
         yield
 
 
 class TestResilientLLMClientReasoningOverride:
     @patch("prism_reviewer.integrations.litellm_client.litellm.completion")
-    def test_completion_uses_config_default_when_none(self, mock_completion) -> None:
-        """When reasoning_effort=None, fallback to the Config.llm_reasoning_effort() default."""
+    def test_completion_omits_parameter_when_none(self, mock_completion) -> None:
+        """When reasoning_effort=None, the parameter is omitted from the call."""
         mock_response = MagicMock()
         mock_response.choices = [
             MagicMock(message=MagicMock(content='{"findings": []}'))
@@ -34,7 +33,7 @@ class TestResilientLLMClientReasoningOverride:
         # Verify litellm.completion call parameters
         assert mock_completion.call_count == 1
         kwargs = mock_completion.call_args[1]
-        assert kwargs.get("reasoning_effort") == "medium"
+        assert "reasoning_effort" not in kwargs
 
     @patch("prism_reviewer.integrations.litellm_client.litellm.completion")
     def test_completion_uses_override_when_provided(self, mock_completion) -> None:

@@ -2,11 +2,11 @@ import os
 import pytest
 from prism_reviewer.core.config import config, GlobalConfig
 
-# Clean mock copy mirroring your exact file structure rules
+# Clean mock copy mirroring your exact file structure rules (using LLM_MODEL_OVERRIDE)
 MOCK_TOML = """
 [llm]
 api_key = "${LLM_PROVIDER_API_KEY|-}"
-model = "${LLM_MODEL_NAME|-gpt-4o}"
+model = "${LLM_MODEL_OVERRIDE|-gpt-4o}"
 
 [llm.thresholds]
 max_requests_per_minute = "${MAX_REQUESTS_PER_MINUTE|-60}"
@@ -26,7 +26,7 @@ def toml_file(tmp_path):
 def wipe_environment_leaks():
     """Ensures test-specific environment strings don't leak between assertion cycles."""
     targets = [
-        "LLM_PROVIDER_API_KEY", "LLM_MODEL_NAME", 
+        "LLM_PROVIDER_API_KEY", "LLM_MODEL_OVERRIDE", 
         "MAX_REQUESTS_PER_MINUTE", "MAX_CONCURRENT_REQUESTS", 
         "RETRIES", "BACKOFF_SECONDS"
     ]
@@ -61,7 +61,7 @@ def test_default_fallbacks_with_empty_environment(toml_file):
 def test_environment_variables_actively_override_defaults(toml_file):
     """Confirms live exported variables correctly override default static fallbacks."""
     os.environ["LLM_PROVIDER_API_KEY"] = "live_token_abc123"
-    os.environ["LLM_MODEL_NAME"] = "claude-3.5-sonnet"
+    os.environ["LLM_MODEL_OVERRIDE"] = "claude-3.5-sonnet"
     os.environ["BACKOFF_SECONDS"] = "12"
     
     config.reset_for_testing(toml_file)

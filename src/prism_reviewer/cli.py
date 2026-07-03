@@ -178,8 +178,12 @@ def main(argv=None):
             sys.exit(1)
 
     if args.pr:
-        if not Config.llm_model_name():
-            logger.error("Environment variable LLM_MODEL_NAME is not set.")
+        has_model = bool(
+            Config.llm_model_name()
+            or any(Config.agent_model_name(agent) for agent in ["warden", "architect", "inspector"])
+        )
+        if not has_model:
+            logger.error("No LLM model configuration is set. Please set LLM_MODEL_OVERRIDE.")
             sys.exit(1)
         if not Config.llm_api_key():
             logger.error("Environment variable LLM_MODEL_API_KEY is not set.")

@@ -58,7 +58,6 @@ jobs:
           
           # Target model configurations
           LLM_MODEL_NAME: ${{ secrets.LLM_MODEL_NAME || 'gemini/gemini-1.5-pro' }}
-          REASONING_EFFORT: 'medium'
         run: |
           # Review changes comparing base branch to current branch
           prism-review --pr --base origin/${{ github.base_ref }}

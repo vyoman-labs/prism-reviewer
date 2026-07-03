@@ -20,6 +20,7 @@ This file outlines the guidelines, architectural patterns, and standards for age
 - **Centralized Config**: Do not read environment variables directly using `os.environ` or `os.getenv` outside of `config.py`.
 - **GlobalConfig**: Always use the `GlobalConfig` singleton from `prism_reviewer.config` to fetch project settings.
 - **TOML Rules**: Update `prism_reviewer.toml` when introducing new configuration parameters. Use placeholders like `${VAR_NAME|-fallback}` for flexible environment overrides.
+- **README Updates**: Always update `README.md` whenever the configuration options or their corresponding environment variable placeholders are added, removed, or changed.
 
 ## 4. Logging
 - **Standardized Logging**: Do not use `print()` statements or initialize independent `logging` objects in core code.

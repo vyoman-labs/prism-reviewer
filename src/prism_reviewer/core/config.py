@@ -162,6 +162,54 @@ class Config:
         return llm.get("model", "")
 
     @classmethod
+    def agent_model_name(cls, agent_name: str) -> str:
+        """
+        Returns the model name for a specific agent.
+        
+        If exactly one model config is set (either globally or for a specific agent),
+        that model is used for all agents. Otherwise, each agent uses its own model config,
+        falling back to the global LLM model.
+        
+        Args:
+            agent_name: One of 'warden', 'architect', 'inspector', 'verifier'.
+            
+        Returns:
+            The resolved model name for the agent, or 'gpt-4o' as a fallback.
+        """
+        global_model = cls.llm_model_name()
+        
+        agents_block = config.get("agents", {})
+        models_block = agents_block.get("models", {}) if isinstance(agents_block, dict) else {}
+        
+        warden_model = models_block.get("warden", "") if isinstance(models_block, dict) else ""
+        architect_model = models_block.get("architect", "") if isinstance(models_block, dict) else ""
+        inspector_model = models_block.get("inspector", "") if isinstance(models_block, dict) else ""
+        verifier_model = models_block.get("verifier", "") if isinstance(models_block, dict) else ""
+        
+        # Collect non-empty model names to check how many are configured
+        configs = {
+            "global": global_model,
+            "warden": warden_model,
+            "architect": architect_model,
+            "inspector": inspector_model,
+            "verifier": verifier_model,
+        }
+        
+        non_empty_configs = {k: v for k, v in configs.items() if v}
+        
+        # If exactly one unique model configuration is set, use it for all agents
+        unique_models = set(non_empty_configs.values())
+        if len(unique_models) == 1:
+            return next(iter(unique_models))
+            
+        # Otherwise, use the agent-specific config if set, falling back to global model
+        specific_model = models_block.get(agent_name, "") if isinstance(models_block, dict) else ""
+        if specific_model:
+            return specific_model
+            
+        return global_model or "gpt-4o"
+
+    @classmethod
     def llm_api_key(cls) -> str:
         """Returns the configured LLM provider API key."""
         llm = config.get("llm", {})

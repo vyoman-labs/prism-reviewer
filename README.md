@@ -161,8 +161,7 @@ Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](
 | Parameter | Default / Placeholder | Description |
 | --- | --- | --- |
 | `api_key` | `${LLM_PROVIDER_API_KEY}` | API credential key for the LiteLLM backend. |
-| `model` | `${LLM_MODEL_NAME}` | Target model identifier (e.g., `openai/gpt-4o`, `anthropic/claude-3-5-sonnet`). |
-| `reasoning_effort` | `${REASONING_EFFORT\|-medium}` | Global reasoning effort level for reasoning models (e.g., `low`, `medium`, `high`). |
+| `model` | `${LLM_MODEL_OVERRIDE}` | Target model identifier used for all agents (e.g., `openai/gpt-4o`, `anthropic/claude-3-5-sonnet`). |
 
 #### 7.1.2 Throttling and Resilience `[llm.thresholds]`
 | Parameter | Default / Placeholder | Description |
@@ -185,6 +184,14 @@ Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](
 | `architect` | `${ARCHITECT_REASONING_EFFORT\|-medium}` | Evaluates structural coupling and performance traps. |
 | `inspector` | `${INSPECTOR_REASONING_EFFORT\|-medium}` | Evaluates local variable smells and code readabilities. |
 | `verifier` | `${VERIFIER_REASONING_EFFORT\|-low}` | Mechanical validation requires minimal reasoning. |
+
+#### 7.1.5 Per-Agent Model Overrides `[agents.models]`
+| Agent | Default / Placeholder | Description |
+| --- | --- | --- |
+| `warden` | `${WARDEN_MODEL_NAME}` | Custom model name for the Warden agent. |
+| `architect` | `${ARCHITECT_MODEL_NAME}` | Custom model name for the Architect agent. |
+| `inspector` | `${INSPECTOR_MODEL_NAME}` | Custom model name for the Inspector agent. |
+| `verifier` | `${VERIFIER_MODEL_NAME}` | Custom model name for the Verifier agent. |
 
 ---
 
