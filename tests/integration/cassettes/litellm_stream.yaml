@@ -1,0 +1,18 @@
+interactions:
+- request:
+    body: '{"model": "openrouter/google/gemini-2.5-flash", "messages": [{"role": "user", "content": "Respond with only the word Hello."}], "stream": true, "temperature": 0.0}'
+    headers:
+      Content-Type:
+      - application/json
+    method: POST
+    uri: https://openrouter.ai/api/v1/chat/completions
+  response:
+    body:
+      string: "data: {\"id\": \"chatcmpl-123\", \"object\": \"chat.completion.chunk\", \"created\": 1677652288, \"model\": \"google/gemini-2.5-flash\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"Hello\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"chatcmpl-123\", \"object\": \"chat.completion.chunk\", \"created\": 1677652288, \"model\": \"google/gemini-2.5-flash\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\ndata: [DONE]\n\n"
+    headers:
+      Content-Type:
+      - text/event-stream
+    status:
+      code: 200
+      message: OK
+version: 1

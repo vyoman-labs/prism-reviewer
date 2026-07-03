@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prism-reviewer"
+version = "0.1.0"
+description = "A resilient and automated tool to review code repositories and pull requests using LLMs."
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+dependencies = [
+    "litellm>=1.0.0",
+    "langgraph>=0.2.0",
+    "PyGithub>=2.0.0",
+    "requests>=2.25.0",
+    "tree-sitter>=0.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "anyio>=4.0.0",
+    "vcrpy>=6.0.0",
+]
+
+[project.scripts]
+prism-review = "prism_reviewer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["prism_reviewer*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: mark a test as a unit test.",
+    "integration: mark a test as an integration test.",
+]
+

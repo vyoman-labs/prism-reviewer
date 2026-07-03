@@ -1,0 +1,72 @@
+name: PrismReviewer PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    name: Run AI Code Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history so git diff can compare against target branch
+          fetch-depth: 0
+
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        continue-on-error: true
+        with:
+          app-id: ${{ secrets.PRISM_REVIEWER_APP_ID }}
+          private-key: ${{ secrets.PRISM_REVIEWER_PRIVATE_KEY }}
+
+      - name: Resolve GitHub Token
+        id: resolve-token
+        run: |
+          if [ -n "${{ steps.app-token.outputs.token }}" ]; then
+            echo "token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
+            echo "Using custom GitHub App token for posting review comments."
+          else
+            echo "token=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
+            echo "GitHub App secrets not found. Falling back to GITHUB_TOKEN."
+          fi
+        shell: bash
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install Prism Reviewer
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Execute AI Code Review
+        env:
+          # API key placeholders loaded from secrets
+          LLM_PROVIDER_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }}
+          LLM_MODEL_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }} # Fallback duplicate for resiliency
+          
+          # Target model configurations
+          LLM_MODEL_NAME: ${{ secrets.LLM_MODEL_NAME || 'gemini/gemini-1.5-pro' }}
+          REASONING_EFFORT: 'medium'
+        run: |
+          # Review changes comparing base branch to current branch
+          prism-review --pr --base origin/${{ github.base_ref }}
+
+      - name: Post Review Comment
+        env:
+          GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python scripts/post_review.py
