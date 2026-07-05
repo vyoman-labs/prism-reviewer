@@ -1,5 +1,5 @@
-from .integrations.litellm_client import ResilientLLMClient
-from .integrations.github import GitHubAppBridge
+from .services.llm import ResilientLLMClient
+from .services.github import GitHubAppBridge
 from .codelens.parser import UniversalASTAnalyzer
 from .agents.graph import build_graph
 from .agents.state import Finding, ReviewState

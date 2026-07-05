@@ -19,7 +19,7 @@ finally:
 
 from ..core.logger import get_logger
 
-logger = get_logger("prism_reviewer.github")
+logger = get_logger("prism_reviewer.services.github")
 
 
 class GitHubAppBridge:

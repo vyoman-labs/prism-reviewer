@@ -118,3 +118,91 @@ def test_fallback_plain_text(analyzer, tmp_path):
 def test_file_not_found(analyzer):
     with pytest.raises(FileNotFoundError):
         analyzer.get_ast_skeleton("nonexistent_file.py")
+
+def test_ast_c(analyzer, tmp_path):
+    code = """\
+struct MyCStruct {
+    int x;
+    int y;
+};
+
+void myCFunction(int a) {
+    return;
+}
+"""
+    file_path = tmp_path / "test.c"
+    file_path.write_text(code, encoding="utf-8")
+    res = analyzer.get_ast_skeleton(str(file_path))
+    assert res["mode"] == "ast"
+    syms = [(s["name"], s["type"]) for s in res["symbols"]]
+    assert ("MyCStruct", "struct_specifier") in syms
+    assert ("myCFunction", "function_definition") in syms
+
+def test_ast_go(analyzer, tmp_path):
+    code = """\
+package main
+
+type MyStruct struct {
+    X int
+    Y int
+}
+
+func myFunction() {
+}
+
+func (s *MyStruct) myMethod() {
+}
+"""
+    file_path = tmp_path / "test.go"
+    file_path.write_text(code, encoding="utf-8")
+    res = analyzer.get_ast_skeleton(str(file_path))
+    assert res["mode"] == "ast"
+    syms = {s["name"]: s["type"] for s in res["symbols"]}
+    assert "MyStruct" in syms
+    assert syms["MyStruct"] == "type_spec"
+    assert "myFunction" in syms
+    assert syms["myFunction"] == "function_declaration"
+    assert "myMethod" in syms
+    assert syms["myMethod"] == "method_declaration"
+
+def test_ast_rust(analyzer, tmp_path):
+    code = """\
+struct MyRustStruct {
+    x: i32,
+    y: i32,
+}
+
+enum MyRustEnum {
+    A,
+    B(i32),
+}
+
+trait MyTrait {
+    fn trait_method(&self);
+}
+
+impl MyRustStruct {
+    fn new() -> Self {
+        MyRustStruct { x: 0, y: 0 }
+    }
+}
+
+fn my_rust_function() {}
+"""
+    file_path = tmp_path / "test.rs"
+    file_path.write_text(code, encoding="utf-8")
+    res = analyzer.get_ast_skeleton(str(file_path))
+    assert res["mode"] == "ast"
+    syms = [(s["name"], s["type"]) for s in res["symbols"]]
+    assert ("MyRustStruct", "struct_item") in syms
+    assert ("MyRustEnum", "enum_item") in syms
+    assert ("MyTrait", "trait_item") in syms
+    assert ("MyRustStruct", "impl_item") in syms
+    assert ("my_rust_function", "function_item") in syms
+
+def test_supported_languages(analyzer):
+    """supported_languages returns extensions for all loaded grammars."""
+    langs = set(analyzer.supported_languages)
+    expected = {".py", ".ts", ".tsx", ".js", ".jsx", ".java",
+                ".cpp", ".cc", ".cxx", ".h", ".hpp", ".c", ".go", ".rs"}
+    assert expected.issubset(langs)

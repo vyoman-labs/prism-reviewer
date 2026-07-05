@@ -11,8 +11,8 @@ import vcr
 import litellm
 import requests
 
-from prism_reviewer.integrations.github import GitHubAppBridge
-from prism_reviewer.integrations.litellm_client import ResilientLLMClient
+from prism_reviewer.services.github import GitHubAppBridge
+from prism_reviewer.services.llm import ResilientLLMClient
 from prism_reviewer.core.config import Config
 
 # Dummy credentials used for replaying and testing in clean/CI environments
@@ -234,7 +234,7 @@ def test_github_bridge_integration() -> None:
                 del kwargs["headers"]["Authorization"]
         return original_get(*args, **kwargs)
 
-    with patch("prism_reviewer.integrations.github.requests.get", side_effect=patched_get):
+    with patch("prism_reviewer.services.github.requests.get", side_effect=patched_get):
         with integration_vcr.use_cassette("github_pr_details.yaml"):
             title = bridge.fetch_pull_request_title(repo_name, pr_number)
             description = bridge.fetch_pull_request_description(repo_name, pr_number)

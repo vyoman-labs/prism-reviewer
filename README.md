@@ -25,7 +25,7 @@ Prism Reviewer splits a single code changes delta (git diff) into specialized an
 
 ### Key Features
 - **Deterministic Evaluation**: Supports zero temperature, fixed seed routing, and structured JSON output to eliminate probabilistic drift across runs.
-- **AST CodeLens Map**: Leverages Tree-Sitter grammars (supporting Python and Java) to extract class, function, and method ranges before scanning.
+- **AST CodeLens Map**: Leverages Tree-Sitter grammars (supporting Python, Java, TypeScript, JavaScript, C, C++, Go, and Rust) to extract class, function, and method ranges before scanning.
 - **Dependency Warnings**: Scans requirements files (`requirements.txt`, `package.json`, `pyproject.toml`) for dependency configuration anomalies.
 - **Map-Reduce Parallelism**: Orchestrated through a LangGraph `StateGraph`, enabling concurrent LLM agent queries.
 - **Dual-Safeguard Verification**: Fact-checks and filters findings against changed lines and previous review states to ensure zero hallucinations and zero duplication.
@@ -221,12 +221,12 @@ To configure a dedicated GitHub Action workflow or set up webhooks for the Prism
 ## 📝10. Notes Limitations and Roadmap
 
 ### 10.1 Limitations
-- **Syntax Boundaries**: AST CodeLens mappings are currently limited to Python (`.py`) and Java (`.java`) parsing via tree-sitter. Other file types fall back to standard regex indexing.
+- **Syntax Boundaries**: AST CodeLens mappings support Python (`.py`), Java (`.java`), TypeScript (`.ts`, `.tsx`), JavaScript (`.js`, `.jsx`), C (`.c`), C++ (`.cpp`, `.cc`, `.cxx`, `.h`, `.hpp`), Go (`.go`), and Rust (`.rs`) via tree-sitter. Other file types fall back to plain-text indexing.
 - **Git Dependency**: The core analysis tool relies on local system execution of the `git` executable (specifically `git diff` and `git ls-files`).
 - **LLM Rate Limits**: Parallel map-reduce execution can exceed rate limits on standard API tiers. Throttling is managed via LiteLLM configurations in [prism_reviewer.toml](prism_reviewer.toml).
 
 ### 10.2 Project Roadmap
-- Add AST grammars and analysis support for **TypeScript/JavaScript**, **Go**, and **Rust**.
+- Expand AST grammar coverage to additional languages as needed.
 - Integrate directly with GitHub **Check Runs API** to highlight warnings inline inside the GitHub "Files changed" diff viewer.
 - Create an interactive **CLI review wizard** allowing developer queries directly in the terminal.
 - Provide a Dockerized workspace image for zero-dependency CI installations.

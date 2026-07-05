@@ -8,7 +8,7 @@ from ..core.logger import get_logger
 # Configure LiteLLM to drop unsupported parameters when calling standard models
 litellm.drop_params = True
 
-logger = get_logger("prism_reviewer.litellm_client")
+logger = get_logger("prism_reviewer.services.llm")
 
 
 class ResilientLLMClient:

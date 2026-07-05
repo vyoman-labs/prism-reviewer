@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 import requests
 
-from prism_reviewer.integrations.github import GitHubAppBridge
+from prism_reviewer.services.github import GitHubAppBridge
 
 def test_github_app_bridge_init():
     # Test successful initialization
@@ -18,8 +18,8 @@ def test_github_app_bridge_init():
     with pytest.raises(ValueError, match="github_token must not be empty or None"):
         GitHubAppBridge(None)  # type: ignore[arg-type]
 
-@patch("prism_reviewer.integrations.github.Github")
-@patch("prism_reviewer.integrations.github.requests.get")
+@patch("prism_reviewer.services.github.Github")
+@patch("prism_reviewer.services.github.requests.get")
 def test_fetch_pull_request_diff_api_success(mock_requests_get, mock_github_class):
     # Mock PyGithub Github instance and objects
     mock_github_instance = MagicMock()
@@ -54,8 +54,8 @@ def test_fetch_pull_request_diff_api_success(mock_requests_get, mock_github_clas
         timeout=30
     )
 
-@patch("prism_reviewer.integrations.github.Github")
-@patch("prism_reviewer.integrations.github.requests.get")
+@patch("prism_reviewer.services.github.Github")
+@patch("prism_reviewer.services.github.requests.get")
 def test_fetch_pull_request_diff_fallback_success(mock_requests_get, mock_github_class):
     # Mock PyGithub Github instance and objects
     mock_github_instance = MagicMock()
@@ -96,8 +96,8 @@ def test_fetch_pull_request_diff_fallback_success(mock_requests_get, mock_github
     )
     assert diff == expected_diff
 
-@patch("prism_reviewer.integrations.github.Github")
-@patch("prism_reviewer.integrations.github.requests.get")
+@patch("prism_reviewer.services.github.Github")
+@patch("prism_reviewer.services.github.requests.get")
 def test_fetch_pull_request_diff_failure(mock_requests_get, mock_github_class):
     # Mock PyGithub Github instance and objects
     mock_github_instance = MagicMock()
@@ -118,7 +118,7 @@ def test_fetch_pull_request_diff_failure(mock_requests_get, mock_github_class):
     with pytest.raises(RuntimeError, match="Failed to fetch pull request diff"):
         bridge.fetch_pull_request_diff("owner/repo", 1)
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_publish_review_comment_success(mock_github_class):
     # Mock PyGithub Github instance and objects
     mock_github_instance = MagicMock()
@@ -140,7 +140,7 @@ def test_publish_review_comment_success(mock_github_class):
     assert comment == mock_comment
     mock_pr.create_issue_comment.assert_called_once_with("### Review Summary")
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_publish_review_comment_empty_body(mock_github_class):
     bridge = GitHubAppBridge("fake-token")
     with pytest.raises(ValueError, match="markdown_body must not be empty or None"):
@@ -149,7 +149,7 @@ def test_publish_review_comment_empty_body(mock_github_class):
     with pytest.raises(ValueError, match="markdown_body must not be empty or None"):
         bridge.publish_review_comment("owner/repo", 1, None)  # type: ignore[arg-type]
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_publish_review_comment_api_failure(mock_github_class):
     # Mock PyGithub Github instance and objects
     mock_github_instance = MagicMock()
@@ -166,7 +166,7 @@ def test_publish_review_comment_api_failure(mock_github_class):
     with pytest.raises(RuntimeError, match="Failed to publish review comment"):
         bridge.publish_review_comment("owner/repo", 1, "### Review Summary")
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_request_title_success(mock_github_class):
     mock_github_instance = MagicMock()
     mock_github_class.return_value = mock_github_instance
@@ -182,7 +182,7 @@ def test_fetch_pull_request_title_success(mock_github_class):
     mock_github_instance.get_repo.assert_called_once_with("owner/repo")
     mock_repo.get_pull.assert_called_once_with(1)
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_request_title_failure(mock_github_class):
     mock_github_instance = MagicMock()
     mock_github_class.return_value = mock_github_instance
@@ -192,7 +192,7 @@ def test_fetch_pull_request_title_failure(mock_github_class):
     with pytest.raises(RuntimeError, match="Failed to fetch pull request title"):
         bridge.fetch_pull_request_title("owner/repo", 1)
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_request_description_success(mock_github_class):
     mock_github_instance = MagicMock()
     mock_github_class.return_value = mock_github_instance
@@ -211,7 +211,7 @@ def test_fetch_pull_request_description_success(mock_github_class):
     description = bridge.fetch_pull_request_description("owner/repo", 1)
     assert description == ""
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_request_description_failure(mock_github_class):
     mock_github_instance = MagicMock()
     mock_github_class.return_value = mock_github_instance
@@ -221,7 +221,7 @@ def test_fetch_pull_request_description_failure(mock_github_class):
     with pytest.raises(RuntimeError, match="Failed to fetch pull request description"):
         bridge.fetch_pull_request_description("owner/repo", 1)
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_requests_by_date_success(mock_github_class):
     mock_github_instance = MagicMock()
     mock_github_class.return_value = mock_github_instance
@@ -247,13 +247,13 @@ def test_fetch_pull_requests_by_date_success(mock_github_class):
         query="is:pr repo:owner/repo created:2023-01-01..2023-01-31"
     )
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_requests_by_date_invalid_type(mock_github_class):
     bridge = GitHubAppBridge("fake-token")
     with pytest.raises(ValueError, match="date_type must be one of 'created', 'updated', 'merged'"):
         bridge.fetch_pull_requests_by_date("owner/repo", "2023-01-01", "2023-01-31", date_type="invalid")
 
-@patch("prism_reviewer.integrations.github.Github")
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_requests_by_date_failure(mock_github_class):
     mock_github_instance = MagicMock()
     mock_github_class.return_value = mock_github_instance

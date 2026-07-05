@@ -6,7 +6,7 @@ import os
 import sys
 
 from prism_reviewer.core.logger import get_logger
-from prism_reviewer.integrations.github import GitHubAppBridge
+from prism_reviewer.services.github import GitHubAppBridge
 
 logger = get_logger("prism_reviewer.post_review")
 

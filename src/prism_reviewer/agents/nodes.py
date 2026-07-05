@@ -40,7 +40,7 @@ from ..core.logger import get_logger
 from ..codelens.dependency_scanner import scan_dependencies
 from ..codelens.parser import UniversalASTAnalyzer
 from ..codelens.searcher import find_text
-from ..integrations.litellm_client import ResilientLLMClient
+from ..services.llm import ResilientLLMClient
 from ..utils.git_utils import (
     group_diffs_into_regions,
     run_git_command,
