@@ -26,7 +26,7 @@ def toml_file(tmp_path):
 def wipe_environment_leaks():
     """Ensures test-specific environment strings don't leak between assertion cycles."""
     targets = [
-        "LLM_PROVIDER_API_KEY", "LLM_MODEL_OVERRIDE", 
+        "GITHUB_TOKEN", "LLM_PROVIDER_API_KEY", "LLM_MODEL_OVERRIDE", 
         "MAX_REQUESTS_PER_MINUTE", "MAX_CONCURRENT_REQUESTS", 
         "RETRIES", "BACKOFF_SECONDS"
     ]
@@ -91,3 +91,70 @@ def test_config_logging_masks_api_key(toml_file):
     console_output = repr(config)
     assert "sk-live-secret-llm-token-string-value-12345" not in console_output
     assert "sk-l...2345" in console_output
+
+
+def test_dotenv_file_loading_populates_placeholders(tmp_path):
+    """Verifies that credentials and model supplied via a .env file populate config placeholders."""
+    from prism_reviewer.core.config import Config
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "GITHUB_TOKEN=ghp_secret_token_123456789\n"
+        "LLM_PROVIDER_API_KEY=sk-env-key-987654321\n"
+        "LLM_MODEL_OVERRIDE=claude-3-5-sonnet\n",
+        encoding="utf-8"
+    )
+
+    toml_content = """
+    [github]
+    token = "${GITHUB_TOKEN}"
+
+    [llm]
+    api_key = "${LLM_PROVIDER_API_KEY}"
+    model = "${LLM_MODEL_OVERRIDE}"
+    """
+    toml_path = tmp_path / "prism_reviewer.toml"
+    toml_path.write_text(toml_content, encoding="utf-8")
+
+    # Wipe environment variables first to test .env loading
+    os.environ.pop("GITHUB_TOKEN", None)
+    os.environ.pop("LLM_PROVIDER_API_KEY", None)
+    os.environ.pop("LLM_MODEL_OVERRIDE", None)
+
+    Config.load(file_path=str(toml_path), env_file=str(env_file))
+
+    assert Config.github_token() == "ghp_secret_token_123456789"
+    assert Config.llm_api_key() == "sk-env-key-987654321"
+    assert Config.llm_model_name() == "claude-3-5-sonnet"
+
+    console_output = repr(config)
+    assert "ghp_secret_token_123456789" not in console_output
+    assert "ghp_...6789" in console_output
+
+
+def test_dotenv_local_precedence(tmp_path, monkeypatch):
+    """Verifies that .env.local takes precedence over .env when both exist."""
+    from prism_reviewer.core.config import Config
+
+    monkeypatch.chdir(tmp_path)
+
+    env_file = tmp_path / ".env"
+    env_file.write_text("LLM_MODEL_OVERRIDE=gpt-4o-env\n", encoding="utf-8")
+
+    env_local = tmp_path / ".env.local"
+    env_local.write_text("LLM_MODEL_OVERRIDE=gpt-4o-local\n", encoding="utf-8")
+
+    toml_content = """
+    [llm]
+    api_key = "dummy"
+    model = "${LLM_MODEL_OVERRIDE}"
+    """
+    toml_path = tmp_path / "prism_reviewer.toml"
+    toml_path.write_text(toml_content, encoding="utf-8")
+
+    os.environ.pop("LLM_MODEL_OVERRIDE", None)
+
+    Config.load(file_path=str(toml_path))
+    assert Config.llm_model_name() == "gpt-4o-local"
+
+

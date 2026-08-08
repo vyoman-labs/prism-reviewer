@@ -3,6 +3,9 @@
 api_key = "${LLM_PROVIDER_API_KEY}"
 model = "${LLM_MODEL_OVERRIDE}"
 
+[github]
+token = "${GITHUB_TOKEN}"
+
 [llm.thresholds]
 max_requests_per_minute = "${MAX_REQUESTS_PER_MINUTE|-60}"
 max_concurrent_requests = "${MAX_CONCURRENT_REQUESTS|-10}"

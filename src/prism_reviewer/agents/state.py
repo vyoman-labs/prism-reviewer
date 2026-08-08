@@ -73,6 +73,9 @@ class ReviewState(TypedDict):
     pr_title: str
     """Pull request title (empty string for local runs without a PR number)."""
 
+    pr_id: NotRequired[int | str]
+    """Pull request ID or number (optional)."""
+
     pr_description: str
     """Pull request description/body (empty string for local runs)."""
 

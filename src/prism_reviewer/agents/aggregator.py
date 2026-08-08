@@ -55,6 +55,7 @@ def aggregator_node(state: ReviewState) -> Dict[str, Any]:
 
     findings: List[Finding] = state.get("verified_findings", [])
     pr_title: str = state.get("pr_title", "") or "(untitled)"
+    pr_id: Any = state.get("pr_id")
 
     # Count per severity tier for the log
     counts: Dict[str, int] = {"CRITICAL": 0, "MAJOR": 0, "ADVISORY": 0}
@@ -78,7 +79,7 @@ def aggregator_node(state: ReviewState) -> Dict[str, Any]:
         ),
     )
 
-    report = _render_markdown(pr_title, sorted_findings, counts)
+    report = _render_markdown(pr_title, sorted_findings, counts, pr_id=pr_id)
     node_log.record(f"Report generated: {len(report)} chars")
     node_log.flush()
 
@@ -89,6 +90,7 @@ def _render_markdown(
     pr_title: str,
     findings: List[Finding],
     counts: Dict[str, int],
+    pr_id: Any = None,
 ) -> str:
     """
     Renders the final review report as a Markdown string.
@@ -97,6 +99,7 @@ def _render_markdown(
         pr_title: Pull request title for the report header.
         findings: Sorted list of verified findings.
         counts:   Pre-computed dict of ``{severity: count}``.
+        pr_id:    Optional pull request ID or number.
 
     Returns:
         Full Markdown report as a string.
@@ -104,10 +107,12 @@ def _render_markdown(
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     total = sum(counts.values())
 
+    pr_header = f"#{pr_id} - {pr_title}" if pr_id is not None and str(pr_id).strip() else pr_title
+
     lines: List[str] = [
         "# \U0001f50d PrismReviewer Code Review Report",
         "",
-        f"**Pull Request:** {pr_title}",
+        f"**Pull Request:** {pr_header}",
         f"**Reviewed:** {now}",
         "**Agent Council:** \U0001f46e Warden \u00b7 \U0001f4d0 Architect \u00b7 \U0001f50d Inspector",
         f"**Findings:** {total} total "

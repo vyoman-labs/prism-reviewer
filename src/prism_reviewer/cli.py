@@ -186,7 +186,7 @@ def main(argv=None):
             logger.error("No LLM model configuration is set. Please set LLM_MODEL_OVERRIDE.")
             sys.exit(1)
         if not Config.llm_api_key():
-            logger.error("Environment variable LLM_MODEL_API_KEY is not set.")
+            logger.error("LLM API key is not set. Please set LLM_PROVIDER_API_KEY in .env or environment.")
             sys.exit(1)
 
         logger.info("PrismReviewer core process started.")
@@ -284,10 +284,16 @@ def main(argv=None):
         except Exception as e:
             logger.warning(f"Failed to save current signatures: {e}")
 
-        # Write the Markdown report to disk
-        report_path = os.path.join(repo_path, "prism_review_report.md")
-        with open(report_path, "w", encoding="utf-8") as f:
+        # Write the Markdown report to disk atomically inside reports/ directory
+        reports_dir = os.path.join(repo_path, "reports")
+        os.makedirs(reports_dir, exist_ok=True)
+        report_path = os.path.join(reports_dir, "prism_review_report.md")
+        temp_report_path = f"{report_path}.tmp"
+        with open(temp_report_path, "w", encoding="utf-8") as f:
             f.write(report_markdown)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_report_path, report_path)
 
         logger.info(f"[cli] Review report generated at: {report_path}")
         logger.info("[cli] Core process completed.")

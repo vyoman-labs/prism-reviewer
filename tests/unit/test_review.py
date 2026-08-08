@@ -6,7 +6,7 @@ from prism_reviewer.cli import main
 
 @pytest.fixture
 def clean_report(tmp_path):
-    report_file = tmp_path / "prism_review_report.md"
+    report_file = tmp_path / "reports" / "prism_review_report.md"
     if report_file.exists():
         os.remove(report_file)
     yield report_file
@@ -167,7 +167,7 @@ def test_cli_pr_review_content_hashing_deduplication(mock_client_class, mock_git
         mock_global_config._data = {}
         main(argv)
 
-    report_file = tmp_path / "prism_review_report.md"
+    report_file = tmp_path / "reports" / "prism_review_report.md"
     assert report_file.exists()
     report_content = report_file.read_text(encoding="utf-8")
     assert "Bug at line 2!" in report_content

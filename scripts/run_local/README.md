@@ -19,15 +19,28 @@ From the root of the repository, install `prism-reviewer` along with its develop
 pip install -e ".[dev]"
 ```
 
-### 2. Configure Environment Variables
-The script requires access to GitHub (to fetch the PR) and your chosen LLM provider. Set the following environment variables in your terminal:
+### 2. Configure Environment Variables or `.env` File
+The script requires access to GitHub (to fetch the PR) and your chosen LLM provider. You can supply these values using a `.env` file in your repository root or by setting environment variables in your terminal.
 
+**Option A: Using a `.env` file (Recommended)**
+Copy `.env.example` to `.env` and fill in your details:
+```bash
+cp .env.example .env
+```
+Edit `.env`:
+```env
+GITHUB_TOKEN=your_github_personal_access_token
+LLM_PROVIDER_API_KEY=your_llm_provider_api_key
+LLM_MODEL_OVERRIDE=gpt-4o
+```
+
+**Option B: Setting terminal environment variables**
 ```bash
 # GitHub Access Token (PAT)
 export GITHUB_TOKEN="your_github_personal_access_token"
 
 # LLM Provider Configuration
-export LLM_MODEL_NAME="openai/gpt-4o"  # Or anthropic/claude-3-5-sonnet, gemini/gemini-1.5-pro, etc.
+export LLM_MODEL_OVERRIDE="gpt-4o"  # Or anthropic/claude-3-5-sonnet, gemini-1.5-pro, etc.
 export LLM_PROVIDER_API_KEY="your_llm_provider_api_key"
 ```
 
@@ -50,8 +63,10 @@ python scripts/run_local/run_local.py --repo "owner/repository" --pr <PR_NUMBER>
 | --- | --- | --- | --- |
 | `--repo` | String | **Yes** | Full repository name on GitHub (e.g., `"octocat/Hello-World"`). |
 | `--pr` | Integer | **Yes** | The numeric ID of the Pull Request. |
-| `--token` | String | No | GitHub Personal Access Token. Defaults to the `GITHUB_TOKEN` environment variable. |
+| `--token` | String | No | GitHub Personal Access Token. Defaults to the `GITHUB_TOKEN` environment variable or `.env` file. |
 | `--output` | String | No | Output file path for the Markdown report (defaults to `prism_review_report.md` in the current directory). |
+| `--context` | String | No | Path to optional project context file (defaults to `.prism_reviewer/context.md`). |
+| `--rules` | String | No | Path to optional custom review rules file (defaults to `.prism_reviewer/rules.md`). |
 
 ### Example Command
 

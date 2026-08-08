@@ -5,6 +5,11 @@ from typing import Any, Dict
 
 import tomllib
 
+try:
+    import dotenv  # type: ignore
+except ImportError:
+    dotenv = None  # type: ignore
+
 
 class GlobalConfig:
     """
@@ -26,18 +31,68 @@ class GlobalConfig:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, file_path: str = "prism_reviewer.toml"):
+    def __init__(self, file_path: str = "prism_reviewer.toml", env_file: str | None = None):
         """
         Initializes the configuration loader.
         
         Args:
             file_path: Path to the TOML configuration file. Defaults to 'prism_reviewer.toml'.
+            env_file: Optional path to an environment variable file (.env).
         """
         if self._initialized:
             return
         
-        self._data: Dict[str, Any] = self._load_and_process(file_path)
+        self._data: Dict[str, Any] = self._load_and_process(file_path, env_file)
         self._initialized = True
+
+    @classmethod
+    def _load_dotenv(cls, env_file: str | None = None, is_custom_toml: bool = False) -> None:
+        """
+        Loads environment variables from .env / .env.local files into os.environ if not already defined.
+        
+        If env_file is provided, loads that specific file.
+        If is_custom_toml is True and env_file is None, skips default .env loading for isolated test files.
+        Otherwise, checks .env.local followed by .env, setting missing variables.
+        
+        Args:
+            env_file: Explicit path to env file, or None to attempt loading default '.env.local' and '.env'.
+            is_custom_toml: True if a non-default TOML path was passed (e.g. in test suites).
+        """
+        if env_file == "":
+            return
+        elif env_file:
+            candidates = [env_file]
+        elif is_custom_toml:
+            return
+        else:
+            candidates = [".env.local", ".env"]
+
+        for filepath in candidates:
+            if os.path.exists(filepath):
+                if dotenv is not None:
+                    dotenv.load_dotenv(dotenv_path=filepath, override=False)
+                else:
+                    cls._parse_env_file(filepath)
+
+    @classmethod
+    def _parse_env_file(cls, filepath: str) -> None:
+        """Fallback lightweight parser for .env files when python-dotenv is absent."""
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if line.startswith("export "):
+                        line = line[7:].strip()
+                    if "=" in line:
+                        key, val = line.split("=", 1)
+                        key = key.strip()
+                        val = val.strip().strip("'\"")
+                        if key and key not in os.environ:
+                            os.environ[key] = val
+        except Exception:
+            pass
 
     @classmethod
     def _substitute_env(cls, content: str) -> str:
@@ -79,12 +134,13 @@ class GlobalConfig:
                 pass
         return data
 
-    def _load_and_process(self, file_path: str) -> Dict[str, Any]:
+    def _load_and_process(self, file_path: str, env_file: str | None = None) -> Dict[str, Any]:
         """
         Loads the TOML file, processes environment variables, and parses it.
         
         Args:
             file_path: Absolute or relative path to the TOML config file.
+            env_file: Optional path to an environment variable file (.env).
             
         Returns:
             A dictionary containing the parsed and processed configuration.
@@ -92,6 +148,9 @@ class GlobalConfig:
         Raises:
             FileNotFoundError: If the config file does not exist.
         """
+        is_custom = os.path.basename(file_path) != "prism_reviewer.toml"
+        self._load_dotenv(env_file, is_custom_toml=is_custom)
+
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Configuration file not found at: {file_path}")
             
@@ -113,19 +172,20 @@ class GlobalConfig:
         """Allows dictionary-like access to configuration keys (e.g., config['llm'])."""
         return self._data[key]
 
-    def reset_for_testing(self, file_path: str = "prism_reviewer.toml"):
+    def reset_for_testing(self, file_path: str = "prism_reviewer.toml", env_file: str | None = None):
         """
         Forces a reload of the configuration data. Primarily used in test suites.
         
         Args:
             file_path: Path to reload from. Defaults to 'prism_reviewer.toml'.
+            env_file: Optional path to an environment variable file (.env).
         """
-        self._data = self._load_and_process(file_path)
+        self._data = self._load_and_process(file_path, env_file)
 
     def __repr__(self) -> str:
         """
-        Returns a string representation of the configuration while masking the LLM API key
-        to prevent sensitive credentials from leaking into log traces.
+        Returns a string representation of the configuration while masking sensitive
+        credentials (LLM API key and GitHub token) to prevent leaking into log traces.
         """
         import copy
         safe_data = copy.deepcopy(self._data)
@@ -140,6 +200,15 @@ class GlobalConfig:
             elif raw_key:
                 # Completely mask short keys
                 llm_block["api_key"] = "********"
+
+        # Safely extract and mask github token if present
+        github_block = safe_data.get("github", {})
+        if "token" in github_block and isinstance(github_block["token"], str):
+            raw_token = github_block["token"]
+            if len(raw_token) > 8:
+                github_block["token"] = f"{raw_token[:4]}...{raw_token[-4:]}"
+            elif raw_token:
+                github_block["token"] = "********"
                 
         return f"GlobalConfig({repr(safe_data)})"
 
@@ -151,9 +220,15 @@ class Config:
     """
 
     @classmethod
-    def load(cls) -> None:
-        """Loads/reloads configuration from the default 'prism_reviewer.toml' file."""
-        config.reset_for_testing()
+    def load(cls, file_path: str = "prism_reviewer.toml", env_file: str | None = None) -> None:
+        """Loads/reloads configuration from the TOML file and optional .env file."""
+        config.reset_for_testing(file_path=file_path, env_file=env_file)
+
+    @classmethod
+    def github_token(cls) -> str:
+        """Returns the configured GitHub token."""
+        github = config.get("github", {})
+        return github.get("token", "")
 
     @classmethod
     def llm_model_name(cls) -> str:
@@ -229,3 +304,4 @@ class Config:
 
 # --- Globally Exported Instance Variable ---
 config = GlobalConfig()
+

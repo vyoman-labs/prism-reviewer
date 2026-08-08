@@ -458,6 +458,10 @@ def _run_agent_node(
     )
     model_name = Config.agent_model_name(agent_name) or "gpt-4o"
     node_log.record(f"Dispatching: model={model_name}, reasoning_effort={effort}")
+    logger.info(
+        f"[{agent_name.upper()} Node] Dispatched to model={model_name} "
+        f"(reasoning_effort={effort}) — waiting for LLM response..."
+    )
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -466,6 +470,9 @@ def _run_agent_node(
 
     client = ResilientLLMClient(config._data)
     raw_response = client.completion_with_retry(messages, reasoning_effort=effort, model=model_name)
+    logger.info(
+        f"[{agent_name.upper()} Node] Received LLM response ({len(raw_response)} chars). Parsing findings..."
+    )
     node_log.record(f"Response received: {len(raw_response)} chars")
 
     findings = _parse_findings(raw_response, agent_name, state["repo_path"], node_log)

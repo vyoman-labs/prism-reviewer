@@ -148,22 +148,29 @@ python -m prism_reviewer.cli --pr --repo /path/to/your/repo --base main
 | `--scan-deps` | Flag | Scans project manifests (`requirements.txt`, `package.json`, `pyproject.toml`). |
 | `--search` | String | Run regex search query across files. |
 | `--methods` | Path | Extracts AST symbols (classes, functions, methods) from the target file. |
+| `--context` | Path | Optional. Path to custom project context markdown file (defaults to `.prism_reviewer/context.md`). |
+| `--rules` | Path | Optional. Path to custom repository review rules markdown file (defaults to `.prism_reviewer/rules.md`). |
 
 ---
 
 ## 🔩7. Configuration Guide
 
-Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](prism_reviewer.toml). Numeric parameters are dynamically cast, and environment variable overrides are supported using the `${VAR_NAME|-default_value}` format.
+Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](prism_reviewer.toml). Numeric parameters are dynamically cast, and environment variable overrides are supported using the `${VAR_NAME|-default_value}` format. You can define environment variables in a `.env` file (see `.env.example`) in your project root or pass them via shell environment variables.
 
 ### 7.1 Configuration Properties
 
-#### 7.1.1 Core LLM Configuration `[llm]`
+#### 7.1.1 GitHub Configuration `[github]`
+| Parameter | Default / Placeholder | Description |
+| --- | --- | --- |
+| `token` | `${GITHUB_TOKEN}` | GitHub Personal Access Token or Installation Token. |
+
+#### 7.1.2 Core LLM Configuration `[llm]`
 | Parameter | Default / Placeholder | Description |
 | --- | --- | --- |
 | `api_key` | `${LLM_PROVIDER_API_KEY}` | API credential key for the LiteLLM backend. |
 | `model` | `${LLM_MODEL_OVERRIDE}` | Target model identifier used for all agents (e.g., `openai/gpt-4o`, `anthropic/claude-3-5-sonnet`). |
 
-#### 7.1.2 Throttling and Resilience `[llm.thresholds]`
+#### 7.1.3 Throttling and Resilience `[llm.thresholds]`
 | Parameter | Default / Placeholder | Description |
 | --- | --- | --- |
 | `max_requests_per_minute` | `${MAX_REQUESTS_PER_MINUTE\|-60}` | API rate throttle limit per minute. |
@@ -171,13 +178,13 @@ Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](
 | `retries` | `${RETRIES\|-3}` | Number of backoff attempts on connection failures. |
 | `backoff_seconds` | `${BACKOFF_SECONDS\|-2}` | Exponential retry multiplier factor. |
 
-#### 7.1.3 Agent Execution Options `[agents]`
+#### 7.1.4 Agent Execution Options `[agents]`
 | Parameter | Default / Placeholder | Description |
 | --- | --- | --- |
 | `mode` | `${AGENTS_MODE\|-parallel}` | Executes agent council in `parallel` or `sequential` mode. |
 | `max_region_lines` | `${MAX_REGION_LINES\|-500}` | Maximum lines per git diff slice region. |
 
-#### 7.1.4 Cognitive Reasoning Settings `[agents.reasoning_effort]`
+#### 7.1.5 Cognitive Reasoning Settings `[agents.reasoning_effort]`
 | Agent | Default / Placeholder | Description |
 | --- | --- | --- |
 | `warden` | `${WARDEN_REASONING_EFFORT\|-high}` | AppSec audits benefit from deep cognitive reasoning. |
@@ -185,13 +192,77 @@ Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](
 | `inspector` | `${INSPECTOR_REASONING_EFFORT\|-medium}` | Evaluates local variable smells and code readabilities. |
 | `verifier` | `${VERIFIER_REASONING_EFFORT\|-low}` | Mechanical validation requires minimal reasoning. |
 
-#### 7.1.5 Per-Agent Model Overrides `[agents.models]`
+#### 7.1.6 Per-Agent Model Overrides `[agents.models]`
 | Agent | Default / Placeholder | Description |
 | --- | --- | --- |
 | `warden` | `${WARDEN_MODEL_NAME}` | Custom model name for the Warden agent. |
 | `architect` | `${ARCHITECT_MODEL_NAME}` | Custom model name for the Architect agent. |
 | `inspector` | `${INSPECTOR_MODEL_NAME}` | Custom model name for the Inspector agent. |
 | `verifier` | `${VERIFIER_MODEL_NAME}` | Custom model name for the Verifier agent. |
+
+---
+
+### 7.2 Project Context & Custom Review Rules (`.prism_reviewer/`)
+
+Prism Reviewer allows repository maintainers to significantly improve review quality, domain accuracy, and signal-to-noise ratio by supplying optional **Project Context** (`context.md`) and **Custom Review Rules** (`rules.md`).
+
+When reviewing pull requests, the multi-agent council (Warden, Architect, Inspector) loads these files into prompt memory to evaluate code changes against your team's exact architectural standards, domain concepts, and coding policies.
+
+#### 7.2.1 Directory Structure
+Place these markdown files inside a `.prism_reviewer/` directory at the root of your target repository:
+```
+my-repository/
+├── .prism_reviewer/
+│   ├── context.md   # Project architecture, tech stack & domain background
+│   └── rules.md     # Custom coding rules, security requirements & constraints
+├── prism_reviewer.toml
+└── ...
+```
+
+> [!TIP]
+> Both `.prism_reviewer/context.md` and `.prism_reviewer/rules.md` are **automatically auto-detected** by the CLI (`prism-review`) and local execution script (`run_local.py`). You can also specify custom file locations using the `--context` and `--rules` flags.
+
+#### 7.2.2 Project Context (`.prism_reviewer/context.md`)
+Providing high-level background information helps agents understand design intentions, domain models, and system boundaries rather than flagging intentional design decisions.
+
+**Recommended Contents:**
+- **System Overview & Architecture**: Core purpose, key subsystems, database layers, and external service dependencies.
+- **Tech Stack & Libraries**: Framework versions, state management tools, ORMs, and async models.
+- **Design Conventions**: Preferred design patterns (e.g., repository pattern, dependency injection), immutability rules, or concurrency patterns.
+
+*Example `context.md`:*
+```markdown
+# Project Context: Payment Processing Service
+
+## Architecture
+- Microservice built with FastAPI, PostgreSQL, and Celery worker queues.
+- Uses SQLAlchemy 2.0 with async sessions.
+
+## Key Invariants
+- All monetary values must be represented using integer cents or Decimal to avoid floating-point errors.
+- Payment gateway API calls must be wrapped in idempotent retry blocks.
+```
+
+#### 7.2.3 Custom Review Rules (`.prism_reviewer/rules.md`)
+Repository-specific rules allow you to enforce team coding standards, security boundaries, and strict review constraints.
+
+**Recommended Contents:**
+- **Security Constraints**: Forbidden functions (e.g., `eval`, un-sanitized SQL formatting), credential leakage checks, CORS policies.
+- **Performance & Scaling Rules**: N+1 query prevention, missing database index warnings, memory leak checks.
+- **Code Style & Maintainability**: Maximum function length guidelines, docstring requirements, error handling requirements (e.g., no bare `except:` clauses).
+
+*Example `rules.md`:*
+```markdown
+# Repository Review Rules
+
+## Security & Reliability
+- NEVER execute raw SQL queries constructed via string formatting or f-strings. Use parameterized queries.
+- Ensure all public API endpoints handle exceptions explicitly and return structured JSON error models.
+
+## Code Quality & Performance
+- Do not make database calls inside loops (N+1 query anti-pattern). Use batch loading or eager joins.
+- All newly added functions must include static type annotations for arguments and return values.
+```
 
 ---
 

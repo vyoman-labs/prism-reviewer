@@ -151,3 +151,9 @@ class TestRenderMarkdown:
         """Report must contain the PrismReviewer header."""
         report = _render_markdown("PR", [], {"CRITICAL": 0, "MAJOR": 0, "ADVISORY": 0})
         assert "PrismReviewer" in report
+
+    def test_report_includes_pr_id_when_provided(self) -> None:
+        """Report header must include '#PR_ID - PR_TITLE' when pr_id is provided."""
+        report = _render_markdown("Plugin SPIFFE outbound auth", [], {"CRITICAL": 0, "MAJOR": 0, "ADVISORY": 0}, pr_id=1139)
+        assert "#1139 - Plugin SPIFFE outbound auth" in report
+

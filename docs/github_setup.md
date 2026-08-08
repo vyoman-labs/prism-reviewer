@@ -122,3 +122,23 @@ If you do not wish to register a GitHub App, you can use a Personal Access Token
      script: |
        // Code remains the same
    ```
+
+---
+
+## 5. Adding Project Context & Custom Review Rules (`.prism_reviewer/`)
+
+To significantly improve the relevance, domain awareness, and quality of automated GitHub Actions PR reviews, commit custom context and rules files directly to your repository:
+
+```
+my-repository/
+├── .prism_reviewer/
+│   ├── context.md   # Project architecture, technology stack, data models & system boundaries
+│   └── rules.md     # Team coding standards, security constraints & review rules
+├── .github/workflows/prism-reviewer.yml
+└── ...
+```
+
+- **`.prism_reviewer/context.md`**: Provides background context on your tech stack, invariants, design patterns, and microservices architecture so the Agent Council understands intentional design choices.
+- **`.prism_reviewer/rules.md`**: Enforces strict security constraints, performance guidelines (e.g. N+1 queries), and style conventions.
+
+The CLI command `prism-review --pr` automatically detects and loads both files from the root of your checked-out repository in CI/CD.

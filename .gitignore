@@ -45,7 +45,12 @@ ENV/
 env/
 
 # Local runtime directories & configs
+.env
+.env.*
+!.env.example
 .prism_reviewer/
+reports/
+prism_review_report*.md
 .idea/
 .vscode/
 .DS_Store
