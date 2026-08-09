@@ -183,6 +183,7 @@ Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](
 | --- | --- | --- |
 | `mode` | `${AGENTS_MODE\|-parallel}` | Executes agent council in `parallel` or `sequential` mode. |
 | `max_region_lines` | `${MAX_REGION_LINES\|-500}` | Maximum lines per git diff slice region. |
+| `max_readme_chars` | `${MAX_README_CHARS\|-10000}` | Maximum characters of root `README.md` included in review context. |
 
 #### 7.1.5 Cognitive Reasoning Settings `[agents.reasoning_effort]`
 | Agent | Default / Placeholder | Description |

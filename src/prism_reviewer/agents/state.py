@@ -98,6 +98,9 @@ class ReviewState(TypedDict):
     context_content: str
     """Contents of ``.prism_reviewer/context.md`` if present, else empty string."""
 
+    readme_content: NotRequired[str]
+    """Contents of repository root ``README.md`` (truncated if exceeding max_readme_chars), else empty string."""
+
     rules_content: str
     """Contents of ``.prism_reviewer/rules.md`` if present, else empty string."""
 

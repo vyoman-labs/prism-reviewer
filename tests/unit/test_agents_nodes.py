@@ -21,6 +21,7 @@ def _make_state(**overrides: Any) -> ReviewState:
         "codelens_dep_summary": "(no manifests found)",
         "codelens_search_hits": "(no hits)",
         "context_content": "",
+        "readme_content": "",
         "rules_content": "",
         "previous_signatures": [],
         "regions": [],
@@ -101,6 +102,7 @@ class TestWardenNode:
         user_msg = next(m for m in messages if m["role"] == "user")
         for section in (
             "## Pull Request Context",
+            "## Repository README",
             "## Git Diff",
             "## Dependency Analysis",
             "## Code Symbol Map",

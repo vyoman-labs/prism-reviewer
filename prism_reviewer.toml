@@ -17,6 +17,7 @@ backoff_seconds = "${BACKOFF_SECONDS|-2}"
 # "sequential": run agents one by one (useful for debugging or rate-limit pressure).
 mode = "${AGENTS_MODE|-parallel}"
 max_region_lines = "${MAX_REGION_LINES|-500}"
+max_readme_chars = "${MAX_README_CHARS|-10000}"
 
 [agents.reasoning_effort]
 # Per-agent reasoning effort. Defaults reflect the cognitive complexity of each role.

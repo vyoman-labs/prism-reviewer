@@ -205,6 +205,50 @@ def _get_repo_structure(repo_path: str) -> str:
         return "(could not retrieve repository structure)"
 
 
+def _load_readme_content(repo_path: str) -> str:
+    """
+    Reads the repository root ``README.md`` file, truncating it at the last complete
+    line boundary if its length exceeds ``max_readme_chars`` (default 10000).
+
+    Args:
+        repo_path: Absolute path to the repository root.
+
+    Returns:
+        The (possibly truncated) README content string, or "(none)" if not found or unreadable.
+    """
+    max_chars_cfg = config.get("agents", {}).get("max_readme_chars", 10000)
+    try:
+        max_chars = int(max_chars_cfg)
+    except (ValueError, TypeError):
+        max_chars = 10000
+
+    readme_path = os.path.join(repo_path, "README.md")
+    if not os.path.isfile(readme_path):
+        return "(none)"
+
+    try:
+        with open(readme_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception:
+        return "(none)"
+
+    if not content.strip():
+        return "(none)"
+
+    if len(content) <= max_chars:
+        return content
+
+    # Truncate at the last complete line boundary within max_chars
+    truncated_raw = content[:max_chars]
+    last_newline = truncated_raw.rfind("\n")
+    if last_newline != -1:
+        truncated = truncated_raw[:last_newline]
+    else:
+        truncated = truncated_raw
+
+    return f"{truncated}\n\n... [README truncated to max {max_chars} characters]"
+
+
 def _build_user_turn(state: ReviewState, agent_name: str) -> str:
     """
     Assembles the structured, labeled user-turn message for an agent node.
@@ -238,6 +282,9 @@ def _build_user_turn(state: ReviewState, agent_name: str) -> str:
         "",
         "## Repository Structure",
         state.get("repo_structure") or "(not available)",
+        "",
+        "## Repository README",
+        state.get("readme_content") or "(none)",
         "",
         "## Dependency Analysis (Codelens: dep-scan)",
         state.get("codelens_dep_summary") or "(no manifests found)",
@@ -400,7 +447,11 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
     codelens_search_hits = "\n".join(search_parts) if search_parts else "(no cross-reference hits found)"
     node_log.record(f"Search hits: {len(search_parts)} lines")
 
-    # 6. Partition diff into numbered regions for large PR review optimization
+    # 6. Repository README loading & truncation
+    readme_content = _load_readme_content(repo_path)
+    node_log.record(f"README content: {len(readme_content)} chars")
+
+    # 7. Partition diff into numbered regions for large PR review optimization
     max_lines = config.get("agents", {}).get("max_region_lines", 500)
     try:
         max_lines = int(max_lines)
@@ -418,6 +469,7 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
         "ast_map": ast_map,
         "codelens_dep_summary": codelens_dep_summary,
         "codelens_search_hits": codelens_search_hits,
+        "readme_content": readme_content,
         "regions": regions,
     }
 

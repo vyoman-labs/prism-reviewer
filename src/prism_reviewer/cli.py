@@ -243,6 +243,7 @@ def main(argv=None):
             "codelens_dep_summary": "",
             "codelens_search_hits": "",
             "context_content": context_content,
+            "readme_content": "",
             "rules_content": rules_content,
             "previous_signatures": previous_signatures,
             "raw_findings": [],

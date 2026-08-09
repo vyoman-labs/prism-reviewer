@@ -19,6 +19,7 @@ def _make_state(git_diff: str = "") -> ReviewState:
         "codelens_dep_summary": "",
         "codelens_search_hits": "",
         "context_content": "",
+        "readme_content": "",
         "rules_content": "",
         "previous_signatures": [],
         "regions": [],
@@ -142,3 +143,49 @@ class TestBuildContextNode:
         
         assert "ast_map" in result
         assert result["ast_map"] == {}  # both skipped
+
+
+def test_load_readme_content_success(tmp_path: pytest.TempPathFactory) -> None:
+    """_load_readme_content loads README.md from repo_path when present."""
+    from prism_reviewer.agents.nodes import _load_readme_content
+
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    readme_file = repo_dir / "README.md"
+    readme_file.write_text("# My Awesome Project\nThis is a test readme.\n", encoding="utf-8")
+
+    content = _load_readme_content(str(repo_dir))
+    assert "# My Awesome Project" in content
+    assert "This is a test readme." in content
+
+
+def test_load_readme_content_missing_returns_none(tmp_path: pytest.TempPathFactory) -> None:
+    """_load_readme_content returns '(none)' when README.md is absent."""
+    from prism_reviewer.agents.nodes import _load_readme_content
+
+    repo_dir = tmp_path / "empty_repo"
+    repo_dir.mkdir()
+
+    content = _load_readme_content(str(repo_dir))
+    assert content == "(none)"
+
+
+def test_load_readme_content_truncates_at_max_chars(tmp_path: pytest.TempPathFactory) -> None:
+    """_load_readme_content truncates README.md content exceeding max_readme_chars."""
+    from prism_reviewer.agents.nodes import _load_readme_content
+    from prism_reviewer.core.config import config
+
+    repo_dir = tmp_path / "large_repo"
+    repo_dir.mkdir()
+    readme_file = repo_dir / "README.md"
+
+    # Write multiple lines exceeding 50 chars
+    lines = [f"Line {i}: " + ("x" * 20) for i in range(10)]
+    readme_file.write_text("\n".join(lines), encoding="utf-8")
+
+    with patch.dict(config._data, {"agents": {"max_readme_chars": 50}}):
+        content = _load_readme_content(str(repo_dir))
+        assert "... [README truncated to max 50 characters]" in content
+        # Ensure total length of main text prior to notice is <= 50
+        body = content.split("\n\n... [README truncated")[0]
+        assert len(body) <= 50
