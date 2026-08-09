@@ -284,9 +284,96 @@ python scripts/run_local/run_local.py --repo "owner/repository" --pr 42 --token 
 
 ---
 
-## 🔗9. GitHub App and Integration Setup
+## 🔗9. GitHub Integration & GitHub Action Setup
 
-To configure a dedicated GitHub Action workflow or set up webhooks for the Prism Reviewer Dashboard, see the detailed setup instructions in [github_setup.md](docs/github_setup.md).
+Prism Reviewer can be integrated into any GitHub repository using our official GitHub Action or as a GitHub App integration.
+
+---
+
+### 9.1 External Repository Quickstart (Using GitHub Action)
+
+External repositories can run automated AI code reviews on Pull Requests in **3 simple steps** using our GitHub Action (`vyoman-labs/prism-reviewer@v1`).
+
+#### Step 1: Add your LLM Provider API Key Secret
+In your repository, go to **Settings > Secrets and variables > Actions > New repository secret** and add:
+- **`LLM_PROVIDER_API_KEY`**: Your API key for Gemini, OpenRouter, OpenAI, Anthropic, or any LiteLLM-supported provider.
+
+#### Step 2: Create Workflow File
+Create a file named `.github/workflows/prism-reviewer.yml` in your repository (or copy [docs/examples/prism-reviewer-external.yml](docs/examples/prism-reviewer-external.yml)):
+
+```yaml
+name: Prism Reviewer AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    name: Run AI Code Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for git diff comparison
+
+      - name: Run Prism Reviewer AI
+        uses: vyoman-labs/prism-reviewer@v1
+        with:
+          llm-api-key: ${{ secrets.LLM_PROVIDER_API_KEY }}
+```
+
+#### Step 3: Open a Pull Request
+Open or update any Pull Request. Prism Reviewer will automatically analyze your code changes and post a structured review report directly to the PR comments!
+
+---
+
+### 9.2 Action Inputs Reference
+
+| Input | Required | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `llm-api-key` | **Yes** | — | API key for LiteLLM provider (Gemini, OpenRouter, OpenAI, etc.). |
+| `llm-model-name` | No | `gemini/gemini-3.1-flash-lite` | Model identifier to execute analysis. |
+| `github-token` | No | `${{ github.token }}` | Token used to post review comments. |
+| `base-ref` | No | `${{ github.base_ref }}` | Base branch for git diff comparison. |
+| `agents-mode` | No | `parallel` | Agent execution mode (`parallel` or `sequential`). |
+
+---
+
+### 9.3 Customizing Bot Comment Identity
+
+By default, comments are posted under the standard **`github-actions[bot]`** identity with a prominent **`🌈 Prism Reviewer AI`** report header inside the comment body.
+
+If you prefer comments to be posted under a dedicated **GitHub App Bot Name** (e.g. `Prism Reviewer AI[bot]`):
+
+```yaml
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRISM_REVIEWER_APP_ID }}
+          private-key: ${{ secrets.PRISM_REVIEWER_PRIVATE_KEY }}
+
+      - name: Run Prism Reviewer AI
+        uses: vyoman-labs/prism-reviewer@v1
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          llm-api-key: ${{ secrets.LLM_PROVIDER_API_KEY }}
+```
+
+---
+
+### 9.4 GitHub App & Webhook Setup
+
+To configure a dedicated GitHub App registration or webhooks for the Prism Reviewer Dashboard, see the detailed documentation:
+- [GitHub App Setup Guide](docs/github_app_setup.md)
+- [GitHub Integration Overview](docs/github_setup.md)
+
 
 ---
 

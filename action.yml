@@ -1,0 +1,77 @@
+name: 'Prism Reviewer AI'
+description: 'Resilient and automated multi-agent code review powered by Prism Reviewer AI'
+author: 'Vyoman Labs'
+
+branding:
+  icon: 'eye'
+  color: 'purple'
+
+inputs:
+  llm-api-key:
+    description: 'API key for your LLM Provider (Gemini, OpenRouter, OpenAI, Anthropic, etc.)'
+    required: true
+  llm-model-name:
+    description: 'LiteLLM model identifier to perform code analysis'
+    required: false
+    default: 'gemini/gemini-3.1-flash-lite'
+  github-token:
+    description: 'GitHub Token for posting review comments (App Token, PAT, or default GITHUB_TOKEN)'
+    required: false
+    default: ${{ github.token }}
+  base-ref:
+    description: 'Base branch or commit reference for comparison'
+    required: false
+    default: ${{ github.base_ref }}
+  agents-mode:
+    description: 'Execution mode for review agents (parallel or sequential)'
+    required: false
+    default: 'parallel'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set Up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Prism Reviewer
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install prism-reviewer || pip install -e "${{ github.action_path }}"
+
+    - name: Run AI Code Review Engine
+      shell: bash
+      env:
+        LLM_PROVIDER_API_KEY: ${{ inputs.llm-api-key }}
+        LLM_MODEL_API_KEY: ${{ inputs.llm-api-key }}
+        LLM_MODEL_NAME: ${{ inputs.llm-model-name }}
+        AGENTS_MODE: ${{ inputs.agents-mode }}
+      run: |
+        BASE_TARGET="${{ inputs.base-ref }}"
+        if [ -z "$BASE_TARGET" ]; then
+          BASE_TARGET="main"
+        fi
+        echo "Executing prism-review against base: origin/$BASE_TARGET"
+        prism-review --pr --base "origin/$BASE_TARGET" || prism-review --pr --base "$BASE_TARGET"
+
+    - name: Publish Review Comment
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        if [ -f "reports/prism_review_report.md" ]; then
+          export REPORT_FILE_PATH="reports/prism_review_report.md"
+        elif [ -f "prism_review_report.md" ]; then
+          export REPORT_FILE_PATH="prism_review_report.md"
+        fi
+
+        if [ -n "$REPORT_FILE_PATH" ]; then
+          echo "Publishing report from $REPORT_FILE_PATH to PR #${PR_NUMBER} in ${GITHUB_REPOSITORY}..."
+          python "${{ github.action_path }}/scripts/post_review.py"
+        else
+          echo "::warning::No Prism Reviewer report file found to publish."
+        fi

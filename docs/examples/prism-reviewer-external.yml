@@ -1,0 +1,36 @@
+# .github/workflows/prism-reviewer.yml
+# Copy this file into your repository under .github/workflows/ to enable automated AI code reviews on Pull Requests!
+
+name: Prism Reviewer AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    name: Run Prism Reviewer AI Code Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history for precise git diff calculations against base branch
+          fetch-depth: 0
+
+      - name: Run Prism Reviewer AI
+        uses: vyoman-labs/prism-reviewer@v1
+        with:
+          # Required: API key for your LLM Provider (Gemini, OpenRouter, OpenAI, Anthropic, etc.)
+          llm-api-key: ${{ secrets.LLM_PROVIDER_API_KEY }}
+
+          # Optional: Model identifier (defaults to gemini/gemini-3.1-flash-lite)
+          llm-model-name: 'gemini/gemini-3.1-flash-lite'
+
+          # Optional: Custom GitHub token (GitHub App Installation token, PAT, or default GITHUB_TOKEN)
+          # Default: ${{ github.token }} (posts comment as github-actions[bot])
+          github-token: ${{ secrets.GITHUB_TOKEN }}
