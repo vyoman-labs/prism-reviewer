@@ -64,7 +64,7 @@ jobs:
       - name: Set Up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
           cache: "pip"
 
       - name: Install Prism Reviewer
@@ -76,7 +76,7 @@ jobs:
         env:
           # Credentials & Model Config
           LLM_PROVIDER_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }}
-          LLM_MODEL_NAME: "openai/gpt-4o" # or any model supported by LiteLLM
+          LLM_MODEL_NAME: "gemini/gemini-3.1-flash-lite" # or any model supported by LiteLLM
           
           # Optional environment overrides for prism_reviewer.toml
           AGENTS_MODE: "parallel"
