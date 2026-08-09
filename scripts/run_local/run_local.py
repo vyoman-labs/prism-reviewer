@@ -3,7 +3,7 @@
 run_local.py
 ~~~~~~~~~~~~
 A utility script to fetch a pull request's diff, title, and description from
-GitHub using a Pull Request ID and run the Prism Reviewer agentic review flow
+GitHub using a Pull Request ID and run the Prism Reviewer AI agentic review flow
 locally.
 
 Requirements:

@@ -1,4 +1,4 @@
-name: PrismReviewer PR Review
+name: Prism Reviewer AI PR Review
 
 on:
   pull_request:
@@ -42,13 +42,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
           cache: 'pip'
 
       - name: Install Prism Reviewer
         run: |
           python -m pip install --upgrade pip
-          pip install .
+          pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ prism-reviewer || pip install prism-reviewer
+
 
       - name: Execute AI Code Review
         env:
@@ -57,7 +58,7 @@ jobs:
           LLM_MODEL_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }} # Fallback duplicate for resiliency
           
           # Target model configurations
-          LLM_MODEL_NAME: ${{ secrets.LLM_MODEL_NAME || 'gemini/gemini-1.5-pro' }}
+          LLM_MODEL_NAME: ${{ secrets.LLM_MODEL_NAME || 'gemini/gemini-3.1-flash-lite' }}
         run: |
           # Review changes comparing base branch to current branch
           prism-review --pr --base origin/${{ github.base_ref }}

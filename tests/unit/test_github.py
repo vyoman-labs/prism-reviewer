@@ -167,6 +167,70 @@ def test_publish_review_comment_api_failure(mock_github_class):
         bridge.publish_review_comment("owner/repo", 1, "### Review Summary")
 
 @patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_with_inline_findings_success(mock_github_class):
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+    mock_review = MagicMock()
+    mock_pr.create_review.return_value = mock_review
+
+    findings = [
+        {
+            "file": "src/main.py",
+            "line": 42,
+            "agent": "warden",
+            "severity": "CRITICAL",
+            "message": "Potential buffer overflow.",
+        }
+    ]
+
+    bridge = GitHubAppBridge("fake-token")
+    res = bridge.publish_review_comment("owner/repo", 1, "### Review Summary", findings=findings)
+
+    assert res == mock_review
+    mock_pr.create_review.assert_called_once()
+    _, kwargs = mock_pr.create_review.call_args
+    assert kwargs["body"] == "### Review Summary"
+    assert kwargs["event"] == "COMMENT"
+    assert len(kwargs["comments"]) == 1
+    assert kwargs["comments"][0]["path"] == "src/main.py"
+    assert kwargs["comments"][0]["line"] == 42
+    assert "Prism Reviewer AI v0.1.0" in kwargs["comments"][0]["body"]
+
+@patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_inline_fallback_to_issue_comment(mock_github_class):
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+    mock_pr.create_review.side_effect = Exception("Invalid line position")
+    mock_comment = MagicMock()
+    mock_comment.id = 999
+    mock_pr.create_issue_comment.return_value = mock_comment
+
+    findings = [
+        {
+            "file": "src/main.py",
+            "line": 999,
+            "agent": "inspector",
+            "severity": "ADVISORY",
+            "message": "Out of range line.",
+        }
+    ]
+
+    bridge = GitHubAppBridge("fake-token")
+    res = bridge.publish_review_comment("owner/repo", 1, "### Review Summary", findings=findings)
+
+    assert res == mock_comment
+    mock_pr.create_issue_comment.assert_called_once_with("### Review Summary")
+
+
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_request_title_success(mock_github_class):
     mock_github_instance = MagicMock()
     mock_github_class.return_value = mock_github_instance

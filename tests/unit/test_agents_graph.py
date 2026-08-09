@@ -98,7 +98,7 @@ class TestAgentsGraph:
         # Report contains findings from all three
         assert "report_markdown" in final_state
         report = final_state["report_markdown"]
-        assert "PrismReviewer Code Review Report" in report
+        assert "Prism Reviewer AI Code Review Report" in report
         assert "warden" in report
         assert "architect" in report
         assert "inspector" in report

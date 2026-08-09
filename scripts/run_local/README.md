@@ -1,6 +1,6 @@
 # 🔌 Local PR Review Utility (`run_local.py`)
 
-This directory contains `run_local.py`, a developer utility script designed to fetch Pull Request details (git diff, title, and description) from GitHub and run the Prism Reviewer multi-agent review flow entirely locally.
+This directory contains `run_local.py`, a developer utility script designed to fetch Pull Request details (git diff, title, and description) from GitHub and run the Prism Reviewer AI multi-agent review flow entirely locally.
 
 It is particularly useful for:
 - Testing and debugging agent council behavior/prompts on real-world pull requests.

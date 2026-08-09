@@ -17,9 +17,13 @@ finally:
     if _our_module is not None:
         sys.modules['github'] = _our_module
 
+from typing import Any, Dict, List, Optional, cast
+
+
 from ..core.logger import get_logger
 
 logger = get_logger("prism_reviewer.services.github")
+
 
 
 class GitHubAppBridge:
@@ -91,17 +95,24 @@ class GitHubAppBridge:
             logger.error(f"Failed to fetch pull request diff for {repo_name} #{pr_number}: {e}")
             raise RuntimeError(f"Failed to fetch pull request diff: {e}") from e
 
-    def publish_review_comment(self, repo_name: str, pr_number: int, markdown_body: str):
+    def publish_review_comment(
+        self,
+        repo_name: str,
+        pr_number: int,
+        markdown_body: str,
+        findings: Optional[List[Dict[str, Any]]] = None,
+    ) -> Any:
         """
-        Publishes the aggregated review markdown comment onto the PR.
+        Publishes the aggregated review summary comment and inline review comments onto the PR.
         
         Args:
             repo_name: The full name of the repository (e.g. "owner/repo").
             pr_number: The pull request number.
             markdown_body: The review comments in markdown format.
+            findings: Optional list of finding dicts to post as inline review comments.
             
         Returns:
-            The created comment object.
+            The created comment or review object.
         """
         logger.info(f"Publishing review comment to pull request #{pr_number} in repository {repo_name}")
         if not markdown_body:
@@ -109,12 +120,66 @@ class GitHubAppBridge:
         try:
             repo = self.g.get_repo(repo_name)
             pr = repo.get_pull(pr_number)
+
+            inline_comments: List[Dict[str, Any]] = []
+            if findings:
+                from .. import __version__
+                agent_emoji: Dict[str, str] = {
+                    "warden": "👮",
+                    "architect": "📐",
+                    "inspector": "🔍",
+                }
+                severity_emoji: Dict[str, str] = {
+                    "CRITICAL": "🚨",
+                    "MAJOR": "⚠️",
+                    "ADVISORY": "💡",
+                }
+                for f in findings:
+                    file_path = f.get("file")
+                    line_num = f.get("line")
+                    if not file_path or not line_num:
+                        continue
+                    agent = str(f.get("agent", "unknown"))
+                    severity = str(f.get("severity", "ADVISORY"))
+                    msg = str(f.get("message", ""))
+
+                    a_badge = agent_emoji.get(agent.lower(), "🤖")
+                    s_badge = severity_emoji.get(severity, "💡")
+
+                    body = (
+                        f"{a_badge} **{agent.capitalize()}** ({s_badge} {severity})\n\n"
+                        f"{msg}\n\n"
+                        f"---\n"
+                        f"*Prism Reviewer AI v{__version__}*"
+                    )
+                    inline_comments.append({
+                        "path": file_path,
+                        "line": int(line_num),
+                        "body": body,
+                    })
+
+            if inline_comments:
+                try:
+                    review = pr.create_review(
+                        body=markdown_body,
+                        comments=cast(Any, inline_comments),
+                        event="COMMENT",
+                    )
+
+                    logger.info(f"Successfully published PR review with {len(inline_comments)} inline comments")
+                    return review
+                except Exception as inline_err:
+                    logger.warning(
+                        f"Failed to publish PR review with inline comments: {inline_err}. Falling back to issue comment."
+                    )
+
             comment = pr.create_issue_comment(markdown_body)
             logger.info(f"Successfully published comment ID {comment.id}")
             return comment
         except Exception as e:
             logger.error(f"Failed to publish review comment to {repo_name} #{pr_number}: {e}")
             raise RuntimeError(f"Failed to publish review comment: {e}") from e
+
 
     def fetch_pull_request_title(self, repo_name: str, pr_number: int) -> str:
         """

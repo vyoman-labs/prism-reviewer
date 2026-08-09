@@ -10,7 +10,7 @@ To run Prism Reviewer as a bot user on pull requests, you should register a GitH
 
 1. Navigate to your organization or personal settings: **Settings** > **Developer settings** > **GitHub Apps** > **New GitHub App**.
 2. Fill out the application details:
-   - **GitHub App name**: e.g., `PrismReviewer-Bot`
+   - **GitHub App name**: e.g., `Prism Reviewer AI`
    - **Homepage URL**: URL of your project repository.
    - **Active Webhook**: (Optional) Check this if you want to stream telemetry to the PrismReviewer Dashboard. Provide your webhook endpoint URL.
 3. Scroll to the **Permissions** section and configure the following access rights:

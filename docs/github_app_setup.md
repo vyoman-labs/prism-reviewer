@@ -1,6 +1,6 @@
 # GitHub App Setup & Integration Guide
 
-To have code reviews posted by a dedicated bot identity (e.g. `prism-reviewer[bot]`) instead of the default `github-actions[bot]`, you can register and install a custom GitHub App.
+To have code reviews posted by a dedicated bot identity (e.g. `Prism Reviewer AI[bot]`) instead of the default `github-actions[bot]`, you can register and install a custom GitHub App.
 
 This document walks you through creating the GitHub App, configuring its permissions, subscribing to repository events, and integrating it with your GitHub Actions workflow.
 
@@ -12,7 +12,7 @@ This document walks you through creating the GitHub App, configuring its permiss
    - **Organization**: `Settings` > `Developer settings` > `GitHub Apps` > `New GitHub App`.
    - **Personal**: `Settings` > `Developer settings` > `GitHub Apps` > `New GitHub App`.
 2. Fill out the basic registration details:
-   - **GitHub App name**: `Prism Reviewer` (or a custom name).
+   - **GitHub App name**: `Prism Reviewer AI` (or a custom name).
    - **Homepage URL**: Your repository URL or organization site.
    - **Webhook**: Set to **Inactive** (the bot runs entirely inside GitHub Actions compute, so we do not need GitHub to send webhook events to a custom server).
 
