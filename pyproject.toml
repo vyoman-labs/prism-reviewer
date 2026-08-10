@@ -40,7 +40,7 @@ where = ["src"]
 include = ["prism_reviewer*"]
 
 [tool.setuptools.package-data]
-prism_reviewer = ["prism_reviewer.toml"]
+prism_reviewer = ["prism_reviewer.toml", "agents/prompts/*.md"]
 
 
 [tool.pytest.ini_options]
