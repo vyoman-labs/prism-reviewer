@@ -143,7 +143,14 @@ class GlobalConfig:
             env_var = match.group(1)
             # If a fallback value is specified after `|-`, use it. Otherwise, default to empty string.
             fallback = match.group(2) if match.group(2) is not None else ""
-            return os.environ.get(env_var, fallback)
+            val = os.environ.get(env_var)
+            if val is not None:
+                return val
+            if env_var == "LLM_MODEL_OVERRIDE":
+                return os.environ.get("LLM_MODEL_NAME", fallback)
+            elif env_var == "LLM_MODEL_NAME":
+                return os.environ.get("LLM_MODEL_OVERRIDE", fallback)
+            return fallback
         
         return cls.PLACEHOLDER_PATTERN.sub(replacer, content)
 
@@ -289,7 +296,7 @@ class Config:
             agent_name: One of 'warden', 'architect', 'inspector', 'verifier'.
             
         Returns:
-            The resolved model name for the agent, or 'gpt-4o' as a fallback.
+            The resolved model name for the agent, or an empty string if none is configured.
         """
         global_model = cls.llm_model_name()
         
@@ -322,7 +329,7 @@ class Config:
         if specific_model:
             return specific_model
             
-        return global_model or "gpt-4o"
+        return global_model
 
     @classmethod
     def llm_api_key(cls) -> str:

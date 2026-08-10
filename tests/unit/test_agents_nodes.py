@@ -1,12 +1,23 @@
-"""Tests for the three agent nodes (warden, architect, inspector)."""
-
+import os
 import json
-from typing import Any
+from typing import Any, Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from prism_reviewer.agents.state import Finding, ReviewState
+
+
+@pytest.fixture(autouse=True)
+def set_model_env() -> Generator[None, None, None]:
+    """Ensures LLM_MODEL_OVERRIDE is set for agent node tests."""
+    old = os.environ.get("LLM_MODEL_OVERRIDE")
+    os.environ["LLM_MODEL_OVERRIDE"] = "test-agent-model"
+    yield
+    if old is None:
+        os.environ.pop("LLM_MODEL_OVERRIDE", None)
+    else:
+        os.environ["LLM_MODEL_OVERRIDE"] = old
 
 
 def _make_state(**overrides: Any) -> ReviewState:
@@ -61,6 +72,22 @@ def _patch_llm(return_value: str):
 # ---------------------------------------------------------------------------
 
 class TestWardenNode:
+    def test_warden_unconfigured_model_raises_value_error(self, tmp_path: Any) -> None:
+        """warden_node must raise ValueError if no model is configured."""
+        from prism_reviewer.core.config import config
+        empty_toml = tmp_path / "empty.toml"
+        empty_toml.write_text("[llm]\napi_key=''\nmodel=''\n", encoding="utf-8")
+        for key in ["LLM_MODEL_OVERRIDE", "WARDEN_MODEL_NAME", "ARCHITECT_MODEL_NAME", "INSPECTOR_MODEL_NAME", "VERIFIER_MODEL_NAME"]:
+            os.environ.pop(key, None)
+        config.reset_for_testing(str(empty_toml))
+        try:
+            state = _make_state()
+            with pytest.raises(ValueError, match="No LLM model configured for agent 'warden'"):
+                _call_warden(state)
+        finally:
+            os.environ["LLM_MODEL_OVERRIDE"] = "test-agent-model"
+            config.reset_for_testing()
+
     def test_warden_returns_raw_findings_key(self) -> None:
         """warden_node must return a dict with 'raw_findings'."""
         state = _make_state()

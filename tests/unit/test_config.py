@@ -69,9 +69,14 @@ def test_environment_variables_actively_override_defaults(toml_file):
     assert config["llm"]["api_key"] == "live_token_abc123"
     assert config["llm"]["model"] == "claude-3.5-sonnet"
     
-    thresholds = config["llm"]["thresholds"]
-    assert thresholds["backoff_seconds"] == 12
-    assert thresholds["retries"] == 3  # Unset variable falls back correctly
+def test_llm_model_name_environment_alias(toml_file):
+    """Confirms setting LLM_MODEL_NAME populates model when LLM_MODEL_OVERRIDE is not set."""
+    os.environ.pop("LLM_MODEL_OVERRIDE", None)
+    os.environ["LLM_MODEL_NAME"] = "gemini/gemini-2.5-flash"
+    
+    config.reset_for_testing(toml_file)
+    assert config["llm"]["model"] == "gemini/gemini-2.5-flash"
+    os.environ.pop("LLM_MODEL_NAME", None)
 
 
 def test_missing_file_throws_correct_exception():

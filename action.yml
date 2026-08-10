@@ -47,8 +47,8 @@ runs:
       shell: bash
       env:
         LLM_PROVIDER_API_KEY: ${{ inputs.llm-api-key }}
-        LLM_MODEL_API_KEY: ${{ inputs.llm-api-key }}
-        LLM_MODEL_NAME: ${{ inputs.llm-model-name }}
+        LLM_MODEL_OVERRIDE: ${{ inputs.llm-model-name }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
         AGENTS_MODE: ${{ inputs.agents-mode }}
       run: |
         BASE_TARGET="${{ inputs.base-ref }}"

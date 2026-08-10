@@ -97,17 +97,41 @@ def test_retry_on_failure_then_success(mock_sleep, mock_model_name, mock_api_key
 @patch.object(Config, "llm_api_key", return_value="dummy-key")
 @patch.object(Config, "llm_model_name", return_value="dummy-model")
 @patch("prism_reviewer.services.llm.time.sleep")
-def test_max_retries_returns_fallback(mock_sleep, mock_model_name, mock_api_key, mock_completion, mock_config):
+def test_max_retries_raises_exception(mock_sleep, mock_model_name, mock_api_key, mock_completion, mock_config):
     # Always fail
     mock_completion.side_effect = Exception("API Error")
 
     client = ResilientLLMClient(mock_config)
-    result = client.completion_with_retry([])
+    with pytest.raises(Exception, match="API Error"):
+        client.completion_with_retry([])
 
-    # Fallback string - severity ADVISORY per rule
-    assert result == '{"findings": []}'
     # max_retries = 2, so 1 initial try + 2 retries = 3 calls total
     assert mock_completion.call_count == 3
     assert mock_sleep.call_count == 2
     mock_sleep.assert_any_call(1.0) # 1.0 * 2^0
     mock_sleep.assert_any_call(2.0) # 1.0 * 2^1
+
+
+@patch.object(Config, "llm_api_key", return_value="dummy-key")
+@patch.object(Config, "llm_model_name", return_value="")
+def test_unconfigured_model_raises_value_error(mock_model_name, mock_api_key, mock_config):
+    client = ResilientLLMClient(mock_config)
+    with pytest.raises(ValueError, match="No LLM model configured"):
+        client.completion_with_retry([])
+
+
+@patch("prism_reviewer.services.llm.litellm.completion")
+@patch.object(Config, "llm_api_key", return_value="dummy-key")
+@patch.object(Config, "llm_model_name", return_value="invalid-model")
+@patch("prism_reviewer.services.llm.time.sleep")
+def test_non_retryable_error_fails_early(mock_sleep, mock_model_name, mock_api_key, mock_completion, mock_config):
+    import litellm
+    mock_completion.side_effect = litellm.NotFoundError("Model not found", model="invalid-model", llm_provider="openai")
+
+    client = ResilientLLMClient(mock_config)
+    with pytest.raises(litellm.NotFoundError):
+        client.completion_with_retry([])
+
+    # Non-retryable error fails early on attempt 1 without sleeping
+    assert mock_completion.call_count == 1
+    assert mock_sleep.call_count == 0

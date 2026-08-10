@@ -49,14 +49,14 @@ def clean_environment() -> Generator[None, None, None]:
         os.environ.pop(target, None)
 
 
-def test_default_agent_model_fallback(toml_file_path: str) -> None:
-    """Tests that when no model environment variables are set, fallback is gpt-4o."""
+def test_default_agent_model_no_fallback(toml_file_path: str) -> None:
+    """Tests that when no model environment variables are set, no default fallback is used and empty string is returned."""
     config.reset_for_testing(toml_file_path)
     
-    assert Config.agent_model_name("warden") == "gpt-4o"
-    assert Config.agent_model_name("architect") == "gpt-4o"
-    assert Config.agent_model_name("inspector") == "gpt-4o"
-    assert Config.agent_model_name("verifier") == "gpt-4o"
+    assert Config.agent_model_name("warden") == ""
+    assert Config.agent_model_name("architect") == ""
+    assert Config.agent_model_name("inspector") == ""
+    assert Config.agent_model_name("verifier") == ""
 
 
 def test_single_global_model_sets_all_agents(toml_file_path: str) -> None:

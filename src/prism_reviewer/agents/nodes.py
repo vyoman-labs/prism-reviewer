@@ -508,7 +508,12 @@ def _run_agent_node(
         .get("reasoning_effort", {})
         .get(agent_name, "medium")
     )
-    model_name = Config.agent_model_name(agent_name) or "gpt-4o"
+    model_name = Config.agent_model_name(agent_name)
+    if not model_name:
+        raise ValueError(
+            f"No LLM model configured for agent '{agent_name}'. "
+            "A model must be explicitly provided via LLM_MODEL_OVERRIDE or per-agent configuration."
+        )
     node_log.record(f"Dispatching: model={model_name}, reasoning_effort={effort}")
     logger.info(
         f"[{agent_name.upper()} Node] Dispatched to model={model_name} "

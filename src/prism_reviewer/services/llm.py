@@ -2,6 +2,13 @@ import time
 from typing import Any, Dict, List
 
 import litellm
+from litellm.exceptions import (
+    AuthenticationError,
+    BadRequestError,
+    NotFoundError,
+    PermissionDeniedError,
+    UnprocessableEntityError,
+)
 from ..core.config import Config
 from ..core.logger import get_logger
 
@@ -62,11 +69,19 @@ class ResilientLLMClient:
             model: Optional model name to override the default global model configuration.
 
         Returns:
-            The completion content as a string, or a fallback JSON string if all
-            retries fail.
+            The completion content as a string.
+
+        Raises:
+            ValueError: If no LLM model configuration is set.
+            Exception: If the model is not available or all retries fail.
         """
         api_key = Config.llm_api_key()
-        model_name = model if model is not None else (Config.llm_model_name() or "gpt-4o")
+        model_name = model if model is not None else Config.llm_model_name()
+        if not model_name:
+            raise ValueError(
+                "No LLM model configured. "
+                "A model must be explicitly provided via LLM_MODEL_OVERRIDE or passed to completion_with_retry."
+            )
         # Resolve effective reasoning effort: default to empty string if not provided
         effective_effort = reasoning_effort or ""
 
@@ -75,6 +90,14 @@ class ResilientLLMClient:
         extra_kwargs: dict = {}
         if effective_effort:
             extra_kwargs["reasoning_effort"] = effective_effort
+
+        non_retryable_exceptions = (
+            NotFoundError,
+            AuthenticationError,
+            BadRequestError,
+            PermissionDeniedError,
+            UnprocessableEntityError,
+        )
 
         attempt = 0
         while True:
@@ -106,14 +129,19 @@ class ResilientLLMClient:
                 raise ValueError("Received empty or invalid response from LiteLLM")
             except Exception as e:
                 attempt += 1
+                if isinstance(e, non_retryable_exceptions):
+                    logger.error(
+                        f"LiteLLM call failed with non-retryable error for model={model_name}: {e}"
+                    )
+                    raise e
                 logger.warning(
                     f"LiteLLM call failed on attempt {attempt} with error: {e}"
                 )
                 if attempt > self.max_retries:
                     logger.error(
-                        f"LiteLLM failed after {attempt} attempts. Returning safe fallback."
+                        f"LiteLLM failed after {attempt} attempts for model={model_name}: {e}"
                     )
-                    return '{"findings": []}'
+                    raise e
                 sleep_time = self.backoff_factor * (2 ** (attempt - 1))
                 logger.info(f"Sleeping for {sleep_time:.2f} seconds before retrying...")
                 time.sleep(sleep_time)

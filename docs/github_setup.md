@@ -76,7 +76,7 @@ jobs:
         env:
           # Credentials & Model Config
           LLM_PROVIDER_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }}
-          LLM_MODEL_NAME: "gemini/gemini-3.1-flash-lite" # or any model supported by LiteLLM
+          LLM_MODEL_OVERRIDE: "gemini/gemini-3.1-flash-lite" # or any model supported by LiteLLM
           
           # Optional environment overrides for prism_reviewer.toml
           AGENTS_MODE: "parallel"
