@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 import requests
 
+from prism_reviewer import __version__
 from prism_reviewer.services.github import GitHubAppBridge
 
 def test_github_app_bridge_init():
@@ -198,7 +199,7 @@ def test_publish_review_comment_with_inline_findings_success(mock_github_class):
     assert len(kwargs["comments"]) == 1
     assert kwargs["comments"][0]["path"] == "src/main.py"
     assert kwargs["comments"][0]["line"] == 42
-    assert "Prism Reviewer AI v0.1.1" in kwargs["comments"][0]["body"]
+    assert f"Prism Reviewer AI v{__version__}" in kwargs["comments"][0]["body"]
 
 @patch("prism_reviewer.services.github.Github")
 def test_publish_review_comment_inline_fallback_to_issue_comment(mock_github_class):

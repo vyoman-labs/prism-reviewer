@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prism-reviewer"
-version = "0.1.1"
+version = "0.1.2"
 description = "A resilient and automated tool to review code repositories and pull requests using LLMs."
 readme = "README.md"
 requires-python = ">=3.12"

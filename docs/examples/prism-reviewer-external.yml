@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Prism Reviewer AI
-        uses: vyoman-labs/prism-reviewer@v0.1.1
+        uses: vyoman-labs/prism-reviewer@v0.1.2
         with:
           # Required: API key for your LLM Provider (Gemini, OpenRouter, OpenAI, Anthropic, etc.)
           llm-api-key: ${{ secrets.LLM_PROVIDER_API_KEY }}
