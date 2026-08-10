@@ -9,8 +9,8 @@ token = "${GITHUB_TOKEN}"
 [llm.thresholds]
 max_requests_per_minute = "${MAX_REQUESTS_PER_MINUTE|-60}"
 max_concurrent_requests = "${MAX_CONCURRENT_REQUESTS|-10}"
-retries = "${RETRIES|-3}"
-backoff_seconds = "${BACKOFF_SECONDS|-2}"
+retries = "${RETRIES|-5}"
+backoff_seconds = "${BACKOFF_SECONDS|-30}"
 
 [agents]
 # "parallel" (default): all three agents run via LangGraph Send (true concurrency).

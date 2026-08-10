@@ -182,8 +182,8 @@ Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](
 | --- | --- | --- |
 | `max_requests_per_minute` | `${MAX_REQUESTS_PER_MINUTE\|-60}` | API rate throttle limit per minute. |
 | `max_concurrent_requests` | `${MAX_CONCURRENT_REQUESTS\|-10}` | Max parallel connections allowed. |
-| `retries` | `${RETRIES\|-3}` | Number of backoff attempts on connection failures. |
-| `backoff_seconds` | `${BACKOFF_SECONDS\|-2}` | Exponential retry multiplier factor. |
+| `retries` | `${RETRIES\|-5}` | Number of backoff attempts on connection failures. |
+| `backoff_seconds` | `${BACKOFF_SECONDS\|-30}` | Exponential retry multiplier factor. |
 
 #### 7.1.4 Agent Execution Options `[agents]`
 | Parameter | Default / Placeholder | Description |
