@@ -122,6 +122,13 @@ python -m twine upload dist/*
 ```
 Log in using the username `__token__` and your production PyPI API token as the password.
 
+### 5.5 Automated TestPyPI Publishing via GitHub Actions
+Whenever a new GitHub release is published, the repository automatically builds and publishes the package to TestPyPI via the [publish-testpypi.yml](.github/workflows/publish-testpypi.yml) workflow.
+
+To enable publication, configure one of the following authentication methods on GitHub:
+- **PyPI Trusted Publishing (OIDC - Recommended)**: Configure a Trusted Publisher on [test.pypi.org](https://test.pypi.org) matching your GitHub repository (`vyoman-labs/prism-reviewer`), workflow file `publish-testpypi.yml`, and environment name `testpypi`.
+- **API Token Fallback**: Alternatively, add a GitHub repository secret named `TEST_PYPI_API_TOKEN` containing your TestPyPI API token.
+
 ---
 
 ## 💻6. CLI Usage
