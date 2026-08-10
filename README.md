@@ -162,7 +162,7 @@ python -m prism_reviewer.cli --pr --repo /path/to/your/repo --base main
 
 ## 🔩7. Configuration Guide
 
-Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](prism_reviewer.toml). Numeric parameters are dynamically cast, and environment variable overrides are supported using the `${VAR_NAME|-default_value}` format. You can define environment variables in a `.env` file (see `.env.example`) in your project root or pass them via shell environment variables.
+Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](prism_reviewer.toml). Placing a `prism_reviewer.toml` in your repository root is optional—if omitted, Prism Reviewer automatically falls back to built-in package defaults. Numeric parameters are dynamically cast, and environment variable overrides are supported using the `${VAR_NAME|-default_value}` format. You can define environment variables in a `.env` file (see `.env.example`) in your project root or pass them via shell environment variables.
 
 ### 7.1 Configuration Properties
 

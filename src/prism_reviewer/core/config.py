@@ -1,3 +1,4 @@
+import importlib.resources
 import os
 import re
 import sys
@@ -9,6 +10,39 @@ try:
     import dotenv  # type: ignore
 except ImportError:
     dotenv = None  # type: ignore
+
+DEFAULT_CONFIG_TOML = """\
+# Environment variable placeholders (override defaults if set)
+[llm]
+api_key = "${LLM_PROVIDER_API_KEY}"
+model = "${LLM_MODEL_OVERRIDE}"
+
+[github]
+token = "${GITHUB_TOKEN}"
+
+[llm.thresholds]
+max_requests_per_minute = "${MAX_REQUESTS_PER_MINUTE|-60}"
+max_concurrent_requests = "${MAX_CONCURRENT_REQUESTS|-10}"
+retries = "${RETRIES|-5}"
+backoff_seconds = "${BACKOFF_SECONDS|-30}"
+
+[agents]
+mode = "${AGENTS_MODE|-parallel}"
+max_region_lines = "${MAX_REGION_LINES|-500}"
+max_readme_chars = "${MAX_README_CHARS|-10000}"
+
+[agents.reasoning_effort]
+warden    = "${WARDEN_REASONING_EFFORT|-high}"
+architect = "${ARCHITECT_REASONING_EFFORT|-medium}"
+inspector = "${INSPECTOR_REASONING_EFFORT|-medium}"
+verifier  = "${VERIFIER_REASONING_EFFORT|-low}"
+
+[agents.models]
+warden    = "${WARDEN_MODEL_NAME}"
+architect = "${ARCHITECT_MODEL_NAME}"
+inspector = "${INSPECTOR_MODEL_NAME}"
+verifier  = "${VERIFIER_MODEL_NAME}"
+"""
 
 
 class GlobalConfig:
@@ -152,10 +186,16 @@ class GlobalConfig:
         self._load_dotenv(env_file, is_custom_toml=is_custom)
 
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Configuration file not found at: {file_path}")
-            
-        with open(file_path, "r", encoding="utf-8") as f:
-            raw_content = f.read()
+            if is_custom:
+                raise FileNotFoundError(f"Configuration file not found at: {file_path}")
+            try:
+                ref = importlib.resources.files("prism_reviewer").joinpath("prism_reviewer.toml")
+                raw_content = ref.read_text(encoding="utf-8")
+            except Exception:
+                raw_content = DEFAULT_CONFIG_TOML
+        else:
+            with open(file_path, "r", encoding="utf-8") as f:
+                raw_content = f.read()
 
         # Substitute environment variables in raw TOML text before parsing
         processed_text = self._substitute_env(raw_content)

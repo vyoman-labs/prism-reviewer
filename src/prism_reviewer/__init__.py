@@ -9,11 +9,11 @@ except importlib.metadata.PackageNotFoundError:
         _pyproject = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml"))
         if os.path.exists(_pyproject):
             with open(_pyproject, "rb") as _f:
-                __version__ = tomllib.load(_f).get("project", {}).get("version", "0.1.0")
+                __version__ = tomllib.load(_f).get("project", {}).get("version", "0.1.1")
         else:
-            __version__ = "0.1.0"
+            __version__ = "0.1.1"
     except Exception:
-        __version__ = "0.1.0"
+        __version__ = "0.1.1"
 
 
 from .services.llm import ResilientLLMClient

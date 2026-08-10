@@ -1,0 +1,38 @@
+# Environment variable placeholders (override defaults if set)
+[llm]
+api_key = "${LLM_PROVIDER_API_KEY}"
+model = "${LLM_MODEL_OVERRIDE}"
+
+[github]
+token = "${GITHUB_TOKEN}"
+
+[llm.thresholds]
+max_requests_per_minute = "${MAX_REQUESTS_PER_MINUTE|-60}"
+max_concurrent_requests = "${MAX_CONCURRENT_REQUESTS|-10}"
+retries = "${RETRIES|-5}"
+backoff_seconds = "${BACKOFF_SECONDS|-30}"
+
+[agents]
+# "parallel" (default): all three agents run via LangGraph Send (true concurrency).
+# "sequential": run agents one by one (useful for debugging or rate-limit pressure).
+mode = "${AGENTS_MODE|-parallel}"
+max_region_lines = "${MAX_REGION_LINES|-500}"
+max_readme_chars = "${MAX_README_CHARS|-10000}"
+
+[agents.reasoning_effort]
+# Per-agent reasoning effort. Defaults reflect the cognitive complexity of each role.
+# warden    → high   (security analysis needs deep chain-of-thought)
+# architect → medium (structural patterns are more visible than security edge cases)
+# inspector → medium (micro-logic is localized, medium effort covers it well)
+# verifier  → low    (mechanical line-number cross-referencing only)
+warden    = "${WARDEN_REASONING_EFFORT|-high}"
+architect = "${ARCHITECT_REASONING_EFFORT|-medium}"
+inspector = "${INSPECTOR_REASONING_EFFORT|-medium}"
+verifier  = "${VERIFIER_REASONING_EFFORT|-low}"
+
+[agents.models]
+# Per-agent model overrides. If any of these are set, they override the global LLM model.
+warden    = "${WARDEN_MODEL_NAME}"
+architect = "${ARCHITECT_MODEL_NAME}"
+inspector = "${INSPECTOR_MODEL_NAME}"
+verifier  = "${VERIFIER_MODEL_NAME}"

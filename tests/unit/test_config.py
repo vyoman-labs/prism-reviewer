@@ -75,9 +75,19 @@ def test_environment_variables_actively_override_defaults(toml_file):
 
 
 def test_missing_file_throws_correct_exception():
-    """Verifies loader yields a specific error message if config.toml vanishes."""
+    """Verifies loader yields a specific error message if custom config file vanishes."""
     with pytest.raises(FileNotFoundError):
         GlobalConfig()._load_and_process("non_existent_file.toml")
+
+
+def test_missing_default_config_file_uses_builtin_defaults(tmp_path, monkeypatch):
+    """Verifies that missing prism_reviewer.toml falls back to built-in package defaults without error."""
+    monkeypatch.chdir(tmp_path)
+    config.reset_for_testing("prism_reviewer.toml")
+    assert config["llm"]["thresholds"]["retries"] == 5
+    assert config["llm"]["thresholds"]["max_requests_per_minute"] == 60
+    assert config["agents"]["mode"] == "parallel"
+
 
 def test_config_logging_masks_api_key(toml_file):
     """Verifies that sensitive data fields are actively masked inside console representations."""

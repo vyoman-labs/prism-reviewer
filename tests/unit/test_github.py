@@ -198,7 +198,7 @@ def test_publish_review_comment_with_inline_findings_success(mock_github_class):
     assert len(kwargs["comments"]) == 1
     assert kwargs["comments"][0]["path"] == "src/main.py"
     assert kwargs["comments"][0]["line"] == 42
-    assert "Prism Reviewer AI v0.1.0" in kwargs["comments"][0]["body"]
+    assert "Prism Reviewer AI v0.1.1" in kwargs["comments"][0]["body"]
 
 @patch("prism_reviewer.services.github.Github")
 def test_publish_review_comment_inline_fallback_to_issue_comment(mock_github_class):

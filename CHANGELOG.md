@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-10
+
+### Fixed
+- **Built-in Configuration Fallback**: Fixed `GlobalConfig` to load package-bundled `prism_reviewer.toml` via `importlib.resources` (and fallback code defaults) when `prism_reviewer.toml` is missing from the target repository root, preventing `FileNotFoundError` during package execution.
+
 ## [0.1.0] - 2026-08-10
 
 ### Added
