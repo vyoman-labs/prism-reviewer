@@ -58,7 +58,7 @@ In the repository where you want to run the reviews (or at the organization leve
 
 ## 5. Workflow Integration Details
 
-The workflow in `.github/workflows/prism-reviewer.yml` leverages `actions/create-github-app-token` to authenticate:
+The workflow in `.github/workflows/prism-reviewer-ai.yml` leverages `actions/create-github-app-token` to authenticate:
 
 ```yaml
 - name: Generate GitHub App Token
@@ -67,6 +67,10 @@ The workflow in `.github/workflows/prism-reviewer.yml` leverages `actions/create
   with:
     app-id: ${{ secrets.PRISM_REVIEWER_APP_ID }}
     private-key: ${{ secrets.PRISM_REVIEWER_PRIVATE_KEY }}
+    owner: ${{ github.repository_owner }}
 ```
 
-This token is passed as `GITHUB_TOKEN` to `scripts/post_review.py`. If the secrets are missing (e.g., in forks or before setup), it automatically falls back to the default `secrets.GITHUB_TOKEN`, ensuring the workflow is resilient.
+> [!NOTE]
+> Setting `owner: ${{ github.repository_owner }}` is critical when the target repository is outside the organization where the GitHub App was originally registered. This ensures GitHub generates an installation token scoped to the repository owner where the workflow runs.
+
+This token is passed as `GITHUB_APP_TOKEN` (and `GITHUB_TOKEN`) to `scripts/post_review.py` and the CLI. When executing, Prism Reviewer logs an explicit line indicating whether `GITHUB_APP_TOKEN` or `GITHUB_TOKEN` is being used. If App secrets are omitted or missing (e.g., in forks or before initial setup), it automatically falls back to the default `secrets.GITHUB_TOKEN`, ensuring workflow resilience.

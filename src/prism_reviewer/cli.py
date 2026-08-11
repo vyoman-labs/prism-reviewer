@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import time as _time
+from typing import Any
 
 from .agents.graph import build_graph
 from .agents.state import ReviewState
@@ -12,6 +13,94 @@ from .codelens.dependency_scanner import scan_dependencies
 from .codelens.searcher import find_text, get_full_file, get_related_files, get_file_methods
 from .utils.git_utils import get_git_diff, get_repo_structure
 from .utils.signature import get_finding_signature
+
+
+def _resolve_pr_api_details(repo_path: str, logger: Any) -> tuple[str, str, int | None]:
+    """
+    Attempts to fetch PR title, description, and ID from the GitHub API using environment
+    variables or git repository remote information.
+
+    Returns:
+        tuple of (pr_title, pr_description, pr_id)
+    """
+    app_token = os.environ.get("GITHUB_APP_TOKEN")
+    env_token = os.environ.get("GITHUB_TOKEN")
+    config_token = Config.github_token()
+
+    token = app_token or env_token or config_token
+    if not token:
+        logger.warning("No GITHUB_TOKEN or GITHUB_APP_TOKEN set; skipping fetching PR details from GitHub API.")
+        return "", "", None
+
+    if app_token:
+        logger.info("Using GitHub App token (GITHUB_APP_TOKEN) to fetch PR details from GitHub API.")
+    elif env_token:
+        logger.info("Using standard GitHub token (GITHUB_TOKEN) to fetch PR details from GitHub API.")
+    else:
+        logger.info("Using configured GitHub token to fetch PR details from GitHub API.")
+
+    repo_name = os.environ.get("GITHUB_REPOSITORY", "")
+    if not repo_name:
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["git", "config", "--get", "remote.origin.url"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            url = result.stdout.strip()
+            if url and "github.com" in url:
+                cleaned = url.split("github.com")[-1].lstrip(":/")
+                if cleaned.endswith(".git"):
+                    cleaned = cleaned[:-4]
+                repo_name = cleaned
+        except Exception as e:
+            logger.debug(f"Failed to infer repository name from git remote: {e}")
+
+    if not repo_name:
+        logger.warning("Could not determine repository name; skipping fetching PR details from GitHub API.")
+        return "", "", None
+
+    pr_number_str = os.environ.get("PR_NUMBER")
+    if not pr_number_str:
+        import re
+        github_ref = os.environ.get("GITHUB_REF", "")
+        match = re.search(r"refs/pull/(\d+)", github_ref)
+        if match:
+            pr_number_str = match.group(1)
+
+    if not pr_number_str:
+        event_path = os.environ.get("GITHUB_EVENT_PATH")
+        if event_path and os.path.exists(event_path):
+            try:
+                with open(event_path, "r", encoding="utf-8") as f:
+                    event_data = json.load(f)
+                    if isinstance(event_data, dict) and "pull_request" in event_data:
+                        pr_number_str = str(event_data["pull_request"].get("number", ""))
+            except Exception as e:
+                logger.debug(f"Failed to parse GITHUB_EVENT_PATH: {e}")
+
+    if not pr_number_str:
+        logger.warning("Could not determine PR number; skipping fetching PR details from GitHub API.")
+        return "", "", None
+
+    try:
+        pr_number = int(pr_number_str)
+    except ValueError:
+        logger.warning(f"Invalid PR number format: '{pr_number_str}'")
+        return "", "", None
+
+    try:
+        from .services.github import GitHubAppBridge
+        bridge = GitHubAppBridge(token)
+        details = bridge.fetch_pull_request_details(repo_name, pr_number)
+        logger.info(f"Successfully fetched PR #{pr_number} details from API: '{details.get('title')}'")
+        return details.get("title", ""), details.get("description", ""), pr_number
+    except Exception as e:
+        logger.warning(f"Failed to fetch PR details from GitHub API: {e}")
+        return "", "", pr_number
 
 
 def main(argv=None):
@@ -232,12 +321,15 @@ def main(argv=None):
         diff_base = args.base or "unstaged"
         diff_content = get_git_diff(repo_path, diff_base)
 
+        # Always attempt to fetch PR title, description, and ID from GitHub API
+        pr_title, pr_description, pr_id = _resolve_pr_api_details(repo_path, logger)
+
         # Build initial state — build_context_node will populate the codelens fields
         initial_state: ReviewState = {
             "repo_path": repo_path,
             "git_diff": diff_content,
-            "pr_title": "",
-            "pr_description": "",
+            "pr_title": pr_title,
+            "pr_description": pr_description,
             "repo_structure": "",
             "ast_map": {},
             "codelens_dep_summary": "",
@@ -251,6 +343,8 @@ def main(argv=None):
             "report_markdown": "",
             "regions": [],
         }
+        if pr_id is not None:
+            initial_state["pr_id"] = pr_id
 
         # Run the multi-agent graph using stream() for structured per-node events
         graph = build_graph()

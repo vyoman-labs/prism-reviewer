@@ -26,16 +26,19 @@ jobs:
         with:
           app-id: ${{ secrets.PRISM_REVIEWER_APP_ID }}
           private-key: ${{ secrets.PRISM_REVIEWER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
 
       - name: Resolve GitHub Token
         id: resolve-token
         run: |
           if [ -n "${{ steps.app-token.outputs.token }}" ]; then
             echo "token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
+            echo "app_token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
             echo "Using custom GitHub App token for posting review comments."
           else
             echo "token=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
-            echo "GitHub App secrets not found. Falling back to GITHUB_TOKEN."
+            echo "app_token=" >> $GITHUB_OUTPUT
+            echo "GitHub App secrets not found. Falling back to default GITHUB_TOKEN."
           fi
         shell: bash
 
@@ -56,6 +59,9 @@ jobs:
           LLM_PROVIDER_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }}
           LLM_MODEL_OVERRIDE: ${{ secrets.LLM_MODEL_OVERRIDE || secrets.LLM_MODEL_NAME || 'gemini/gemini-3.1-flash-lite' }}
           GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
+          GITHUB_APP_TOKEN: ${{ steps.resolve-token.outputs.app_token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Review changes comparing base branch to current branch
           prism-review --pr --base origin/${{ github.base_ref }}
@@ -63,6 +69,7 @@ jobs:
       - name: Post Review Comment
         env:
           GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
+          GITHUB_APP_TOKEN: ${{ steps.resolve-token.outputs.app_token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |

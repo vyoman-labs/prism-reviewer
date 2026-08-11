@@ -17,7 +17,17 @@ inputs:
   github-token:
     description: 'GitHub Token for posting review comments (App Token, PAT, or default GITHUB_TOKEN)'
     required: false
-    default: ${{ github.token }}
+    default: ''
+  app-id:
+    description: 'GitHub App ID (used to generate installation token if github-token is not set)'
+    required: false
+  private-key:
+    description: 'GitHub App Private Key (used to generate installation token if github-token is not set)'
+    required: false
+  owner:
+    description: 'Repository owner for GitHub App installation token (defaults to github.repository_owner)'
+    required: false
+    default: ${{ github.repository_owner }}
   base-ref:
     description: 'Base branch or commit reference for comparison'
     required: false
@@ -41,14 +51,41 @@ runs:
         python -m pip install --upgrade pip
         pip install "${{ github.action_path }}" || pip install prism-reviewer || pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ prism-reviewer
 
+    - name: Generate GitHub App Token
+      id: app-token
+      if: ${{ inputs.app-id != '' && inputs.private-key != '' }}
+      uses: actions/create-github-app-token@v1
+      continue-on-error: true
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+        owner: ${{ inputs.owner }}
 
+    - name: Resolve GitHub Token
+      id: resolve-token
+      shell: bash
+      run: |
+        if [ -n "${{ steps.app-token.outputs.token }}" ]; then
+          echo "token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
+          echo "app_token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
+          echo "::notice::Using GitHub App token for posting review comments."
+        elif [ -n "${{ inputs.github-token }}" ]; then
+          echo "token=${{ inputs.github-token }}" >> $GITHUB_OUTPUT
+          echo "app_token=" >> $GITHUB_OUTPUT
+          echo "::notice::Using provided github-token for posting review comments."
+        else
+          echo "token=${{ github.token }}" >> $GITHUB_OUTPUT
+          echo "app_token=" >> $GITHUB_OUTPUT
+          echo "::notice::Using default repository GITHUB_TOKEN for posting review comments."
+        fi
 
     - name: Run AI Code Review Engine
       shell: bash
       env:
         LLM_PROVIDER_API_KEY: ${{ inputs.llm-api-key }}
         LLM_MODEL_OVERRIDE: ${{ inputs.llm-model-name }}
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
+        GITHUB_APP_TOKEN: ${{ steps.resolve-token.outputs.app_token }}
         AGENTS_MODE: ${{ inputs.agents-mode }}
       run: |
         BASE_TARGET="${{ inputs.base-ref }}"
@@ -61,7 +98,8 @@ runs:
     - name: Publish Review Comment
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
+        GITHUB_APP_TOKEN: ${{ steps.resolve-token.outputs.app_token }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |

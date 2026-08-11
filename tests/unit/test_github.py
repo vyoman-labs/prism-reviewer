@@ -1,3 +1,4 @@
+import os
 import pytest
 from unittest.mock import MagicMock, patch
 import requests
@@ -327,3 +328,30 @@ def test_fetch_pull_requests_by_date_failure(mock_github_class):
     bridge = GitHubAppBridge("fake-token")
     with pytest.raises(RuntimeError, match="Failed to fetch pull requests by date"):
         bridge.fetch_pull_requests_by_date("owner/repo", "2023-01-01", "2023-01-31")
+
+
+def test_post_review_script_with_github_app_token(tmp_path):
+    from scripts.post_review import publish_report_to_pr
+
+    report_file = tmp_path / "prism_review_report.md"
+    report_file.write_text("## PR Review Report\n\nLooks good!", encoding="utf-8")
+
+    env = {
+        "GITHUB_APP_TOKEN": "ghs_test_app_token",
+        "GITHUB_REPOSITORY": "test-owner/test-repo",
+        "PR_NUMBER": "42",
+        "REPORT_FILE_PATH": str(report_file),
+    }
+
+    with patch.dict(os.environ, env, clear=True):
+        with patch("scripts.post_review.GitHubAppBridge") as mock_bridge_cls:
+            mock_bridge_inst = MagicMock()
+            mock_bridge_cls.return_value = mock_bridge_inst
+
+            publish_report_to_pr()
+
+            mock_bridge_cls.assert_called_once_with("ghs_test_app_token")
+            mock_bridge_inst.publish_review_comment.assert_called_once_with(
+                "test-owner/test-repo", 42, "## PR Review Report\n\nLooks good!"
+            )
+

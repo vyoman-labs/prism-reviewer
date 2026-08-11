@@ -20,14 +20,16 @@ def publish_report_to_pr() -> None:
         FileNotFoundError: If the report markdown file does not exist.
         RuntimeError: If publishing the review comment fails.
     """
-    token: str | None = os.environ.get("GITHUB_TOKEN")
+    app_token: str | None = os.environ.get("GITHUB_APP_TOKEN")
+    env_token: str | None = os.environ.get("GITHUB_TOKEN")
+    token: str | None = app_token or env_token
     repo_name: str | None = os.environ.get("GITHUB_REPOSITORY")
     pr_number_str: str | None = os.environ.get("PR_NUMBER")
     report_file_path: str = os.environ.get("REPORT_FILE_PATH", "prism_review_report.md")
 
     if not token:
-        logger.error("Environment variable GITHUB_TOKEN is not set.")
-        raise ValueError("GITHUB_TOKEN must not be empty or None")
+        logger.error("Environment variable GITHUB_TOKEN or GITHUB_APP_TOKEN is not set.")
+        raise ValueError("GITHUB_TOKEN or GITHUB_APP_TOKEN must not be empty or None")
 
     if not repo_name:
         logger.error("Environment variable GITHUB_REPOSITORY is not set.")
@@ -53,6 +55,11 @@ def publish_report_to_pr() -> None:
     if not markdown_body.strip():
         logger.warning("Markdown report is empty. Skipping post to GitHub.")
         return
+
+    if app_token:
+        logger.info("Using GitHub App token (GITHUB_APP_TOKEN) to publish review comment.")
+    else:
+        logger.info("Using standard GitHub token (GITHUB_TOKEN) to publish review comment.")
 
     logger.info(f"Connecting to GitHub PR #{pr_number} in repo '{repo_name}'...")
     bridge = GitHubAppBridge(token)

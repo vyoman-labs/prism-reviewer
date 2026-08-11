@@ -1,12 +1,15 @@
 import os
 import pytest
-from prism_reviewer.core.config import config, GlobalConfig
+from prism_reviewer.core.config import config, GlobalConfig, Config
 
 # Clean mock copy mirroring your exact file structure rules (using LLM_MODEL_OVERRIDE)
 MOCK_TOML = """
 [llm]
 api_key = "${LLM_PROVIDER_API_KEY|-}"
 model = "${LLM_MODEL_OVERRIDE|-gpt-4o}"
+
+[github]
+token = "${GITHUB_TOKEN}"
 
 [llm.thresholds]
 max_requests_per_minute = "${MAX_REQUESTS_PER_MINUTE|-60}"
@@ -26,7 +29,7 @@ def toml_file(tmp_path):
 def wipe_environment_leaks():
     """Ensures test-specific environment strings don't leak between assertion cycles."""
     targets = [
-        "GITHUB_TOKEN", "LLM_PROVIDER_API_KEY", "LLM_MODEL_OVERRIDE", 
+        "GITHUB_TOKEN", "GITHUB_APP_TOKEN", "LLM_PROVIDER_API_KEY", "LLM_MODEL_OVERRIDE", 
         "MAX_REQUESTS_PER_MINUTE", "MAX_CONCURRENT_REQUESTS", 
         "RETRIES", "BACKOFF_SECONDS"
     ]
@@ -171,5 +174,19 @@ def test_dotenv_local_precedence(tmp_path, monkeypatch):
 
     Config.load(file_path=str(toml_path))
     assert Config.llm_model_name() == "gpt-4o-local"
+
+
+def test_github_app_token_environment_alias(toml_file):
+    """Confirms setting GITHUB_APP_TOKEN populates token when GITHUB_TOKEN is not set."""
+    os.environ.pop("GITHUB_TOKEN", None)
+    os.environ["GITHUB_APP_TOKEN"] = "ghs_app_token_9999"
+
+    try:
+        config.reset_for_testing(toml_file)
+        assert Config.github_token() == "ghs_app_token_9999"
+    finally:
+        os.environ.pop("GITHUB_APP_TOKEN", None)
+        config.reset_for_testing(toml_file)
+
 
 

@@ -150,6 +150,10 @@ class GlobalConfig:
                 return os.environ.get("LLM_MODEL_NAME", fallback)
             elif env_var == "LLM_MODEL_NAME":
                 return os.environ.get("LLM_MODEL_OVERRIDE", fallback)
+            elif env_var == "GITHUB_TOKEN":
+                return os.environ.get("GITHUB_APP_TOKEN", fallback)
+            elif env_var == "GITHUB_APP_TOKEN":
+                return os.environ.get("GITHUB_TOKEN", fallback)
             return fallback
         
         return cls.PLACEHOLDER_PATTERN.sub(replacer, content)

@@ -221,6 +221,30 @@ class GitHubAppBridge:
             logger.error(f"Failed to fetch pull request description for {repo_name} #{pr_number}: {e}")
             raise RuntimeError(f"Failed to fetch pull request description: {e}") from e
 
+    def fetch_pull_request_details(self, repo_name: str, pr_number: int) -> Dict[str, Any]:
+        """
+        Fetches title, description, and number of the pull request in a single call.
+        
+        Args:
+            repo_name: The full name of the repository (e.g. "owner/repo").
+            pr_number: The pull request number.
+            
+        Returns:
+            A dictionary containing 'title', 'description', and 'number'.
+        """
+        logger.info(f"Fetching PR details for #{pr_number} in repository {repo_name}")
+        try:
+            repo = self.g.get_repo(repo_name)
+            pr = repo.get_pull(pr_number)
+            return {
+                "title": pr.title or "",
+                "description": pr.body or "",
+                "number": pr.number,
+            }
+        except Exception as e:
+            logger.error(f"Failed to fetch pull request details for {repo_name} #{pr_number}: {e}")
+            raise RuntimeError(f"Failed to fetch pull request details: {e}") from e
+
     def fetch_pull_requests_by_date(
         self,
         repo_name: str,
