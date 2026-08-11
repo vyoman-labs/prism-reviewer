@@ -137,14 +137,29 @@ def _format_file_cell(file_path: str) -> str:
     """
     Formats a file path for inclusion inside a Markdown table cell.
 
-    Inserts `<wbr>` (Word Break Opportunity) tags after every `/` path separator
-    so the browser table layout engine can wrap long file paths across
-    directory boundaries when horizontal space is constrained.
+    Splits the path into a primary filename line (rendered in code font) and a
+    directory path subtext line (rendered in smaller text with `<wbr>` tags
+    after every `/` separator outside code backticks).  This keeps the File
+    column narrow and allows directory paths to wrap gracefully at path
+    separators while leaving maximum space for the Message column.
     """
     sanitized = _sanitize_table_cell(file_path)
-    if not sanitized:
-        return "?"
-    return sanitized.replace("/", "/<wbr>")
+    if not sanitized or sanitized == "?":
+        return "`?`"
+
+    import os
+
+    dir_path, filename = os.path.split(sanitized)
+    if not filename:
+        filename = sanitized
+        dir_path = ""
+
+    code_filename = f"`{filename}`"
+    if not dir_path:
+        return code_filename
+
+    dir_with_wbr = dir_path.replace("/", "/<wbr>")
+    return f"{code_filename}<br><small>{dir_with_wbr}/</small>"
 
 
 def _render_markdown(
@@ -219,7 +234,7 @@ def _render_markdown(
                 msg = _sanitize_table_cell(str(f.get("message", "?")))
                 lines.append(
                     f"| {agent_badge} {agent} "
-                    f"| `{file_str}` "
+                    f"| {file_str} "
                     f"| {f.get('line', '?')} "
                     f"| {msg} |"
                 )
@@ -244,7 +259,7 @@ def _render_markdown(
             msg = _sanitize_table_cell(str(f.get("message", "?")))
             lines.append(
                 f"| {agent_badge} {agent} "
-                f"| `{file_str}` "
+                f"| {file_str} "
                 f"| {f.get('line', '?')} "
                 f"| ~~{msg}~~ |"
             )

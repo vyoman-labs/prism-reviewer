@@ -78,7 +78,7 @@ def test_cli_pr_review_with_custom_context_and_rules(mock_client_class, mock_git
     # Check that report is generated
     assert clean_report.exists()
     report_content = clean_report.read_text(encoding="utf-8")
-    assert "src/<wbr>main.py" in report_content
+    assert "`main.py`<br><small>src/</small>" in report_content
     assert "ADVISORY" in report_content
     assert "Hardcoded API Key found!" in report_content
 

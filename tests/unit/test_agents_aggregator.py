@@ -185,18 +185,20 @@ class TestRenderMarkdown:
         assert _sanitize_table_cell("foo <br/> bar <br> baz") == "foo bar baz"
         assert _sanitize_table_cell("a | b | c") == "a \\| b \\| c"
 
-    def test_format_file_cell_inserts_wbr(self) -> None:
-        """_format_file_cell must insert <wbr> tags after slashes in file paths."""
+    def test_format_file_cell_two_line_formatting(self) -> None:
+        """_format_file_cell must output filename in code block and directory path subtext in <small> with <wbr>."""
         from prism_reviewer.agents.aggregator import _format_file_cell
-        assert _format_file_cell("") == "?"
-        assert _format_file_cell("src/components/button.py") == "src/<wbr>components/<wbr>button.py"
+        assert _format_file_cell("") == "`?`"
+        assert _format_file_cell("main.py") == "`main.py`"
+        assert _format_file_cell("src/components/button.py") == "`button.py`<br><small>src/<wbr>components/</small>"
+        assert _format_file_cell("src/main/java/co/uk/Repo.java") == "`Repo.java`<br><small>src/<wbr>main/<wbr>java/<wbr>co/<wbr>uk/</small>"
 
     def test_render_markdown_table_column_alignment(self) -> None:
-        """_render_markdown table headers must include explicit column alignment specifiers."""
+        """_render_markdown table headers must include explicit column alignment specifiers and two-line file cell."""
         f = _make_finding(severity="CRITICAL", file="src/main.py", line=10)
         report = _render_markdown("PR", [f], {"CRITICAL": 1, "MAJOR": 0, "ADVISORY": 0})
         assert "| :--- | :--- | :---: | :--- |" in report
-        assert "src/<wbr>main.py" in report
+        assert "`main.py`<br><small>src/</small>" in report
 
 
 
