@@ -69,14 +69,19 @@ runs:
           echo "token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
           echo "app_token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
           echo "::notice::Using GitHub App token for posting review comments."
-        elif [ -n "${{ inputs.github-token }}" ]; then
-          echo "token=${{ inputs.github-token }}" >> $GITHUB_OUTPUT
-          echo "app_token=" >> $GITHUB_OUTPUT
-          echo "::notice::Using provided github-token for posting review comments."
         else
-          echo "token=${{ github.token }}" >> $GITHUB_OUTPUT
-          echo "app_token=" >> $GITHUB_OUTPUT
-          echo "::notice::Using default repository GITHUB_TOKEN for posting review comments."
+          if [ -n "${{ inputs.app-id }}" ] || [ -n "${{ inputs.private-key }}" ]; then
+            echo "::warning::GitHub App credentials (app-id / private-key) were provided, but actions/create-github-app-token failed to generate an installation token. Please verify the App is installed on target repository/owner with 'Pull Requests: Read & write' permissions. Falling back to default repository GITHUB_TOKEN."
+          fi
+          if [ -n "${{ inputs.github-token }}" ]; then
+            echo "token=${{ inputs.github-token }}" >> $GITHUB_OUTPUT
+            echo "app_token=" >> $GITHUB_OUTPUT
+            echo "::notice::Using provided github-token for posting review comments."
+          else
+            echo "token=${{ github.token }}" >> $GITHUB_OUTPUT
+            echo "app_token=" >> $GITHUB_OUTPUT
+            echo "::notice::Using default repository GITHUB_TOKEN for posting review comments."
+          fi
         fi
 
     - name: Run AI Code Review Engine
