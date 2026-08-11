@@ -129,6 +129,27 @@ To enable publication, configure one of the following authentication methods on 
 - **PyPI Trusted Publishing (OIDC - Recommended)**: Configure a Trusted Publisher on [test.pypi.org](https://test.pypi.org) matching your GitHub repository (`vyoman-labs/prism-reviewer`), workflow file `publish-testpypi.yml`, and environment name `testpypi`.
 - **API Token Fallback**: Alternatively, add a GitHub repository secret named `TEST_PYPI_API_TOKEN` containing your TestPyPI API token.
 
+### 5.6 Automated Production PyPI Publishing via GitHub Actions
+Production releases to PyPI are managed via the dedicated [publish-pypi.yml](.github/workflows/publish-pypi.yml) workflow.
+
+#### Explicit Release & Publishing Toggle
+To trigger a PyPI publish with explicit controls:
+1. Navigate to **Actions** > **Publish Package to PyPI** in your GitHub repository.
+2. Click **Run workflow** and configure the dispatch inputs:
+   - **`publish_testpypi`**: Checkbox toggle to publish to TestPyPI (`test.pypi.org`) (Default: **`true`**).
+   - **`publish_pypi`**: Checkbox toggle to publish to PyPI (`pypi.org`) (Default: **`false`**).
+   - **`tag_name`**: *(Optional)* Release version tag (e.g., `v1.0.0`).
+   - **`create_release`**: *(Optional)* Checkbox toggle to automatically create/publish a GitHub Release for the tag.
+
+#### OIDC Trusted Publishing Setup for PyPI
+To enable automated publication without managing API tokens:
+1. Go to your PyPI account on [pypi.org](https://pypi.org) > **Account Settings** > **Publishing**.
+2. Add a new GitHub publisher with the following details:
+   - **Owner**: `vyoman-labs`
+   - **Repository**: `prism-reviewer`
+   - **Workflow name**: `publish-pypi.yml`
+   - **Environment name**: `pypi`
+
 ---
 
 ## 💻6. CLI Usage

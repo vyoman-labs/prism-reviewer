@@ -1,0 +1,81 @@
+name: Publish Package to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish_testpypi:
+        description: 'Publish package to TestPyPI (test.pypi.org)'
+        type: boolean
+        required: true
+        default: true
+      publish_pypi:
+        description: 'Publish package to PyPI (pypi.org)'
+        type: boolean
+        required: true
+        default: false
+      tag_name:
+        description: 'Release Tag / Version (e.g. v1.0.0, optional if release already exists)'
+        type: string
+        required: false
+      create_release:
+        description: 'Create GitHub Release for specified tag_name'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    name: Build and publish Python distribution
+    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.publish_testpypi == true || inputs.publish_testpypi == 'true' || inputs.publish_pypi == true || inputs.publish_pypi == 'true')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Mandatory for PyPI/TestPyPI OIDC Trusted Publishing
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build package distributions (sdist and wheel)
+        run: python -m build
+
+      - name: Create GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.create_release == true || inputs.create_release == 'true') && inputs.tag_name != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag_name }}
+          name: ${{ inputs.tag_name }}
+          generate_release_notes: true
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish distribution to TestPyPI
+        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.publish_testpypi == true || inputs.publish_testpypi == 'true') }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+      - name: Publish distribution to PyPI
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.publish_pypi == true || inputs.publish_pypi == 'true')) }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
