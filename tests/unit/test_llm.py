@@ -45,7 +45,8 @@ def test_successful_completion(mock_model_name, mock_api_key, mock_completion, m
         api_key="env-api-key",
         response_format={"type": "json_object"},
         temperature=0.0,
-        seed=1337
+        seed=1337,
+        timeout=120.0,
     )
 
 @patch("prism_reviewer.services.llm.litellm.completion")
@@ -70,7 +71,8 @@ def test_successful_completion_with_model_override(mock_model_name, mock_api_key
         api_key="env-api-key",
         response_format={"type": "json_object"},
         temperature=0.0,
-        seed=1337
+        seed=1337,
+        timeout=120.0,
     )
 
 @patch("prism_reviewer.services.llm.litellm.completion")

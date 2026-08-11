@@ -35,6 +35,7 @@ class ResilientLLMClient:
         thresholds = config_dict.get("llm", {}).get("thresholds", {})
         self.max_retries = int(thresholds.get("retries", 3))
         self.backoff_factor = float(thresholds.get("backoff_seconds", 2.0))
+        self.request_timeout = float(thresholds.get("request_timeout", 120.0))
 
     def completion_with_retry(
         self,
@@ -90,6 +91,8 @@ class ResilientLLMClient:
         extra_kwargs: dict = {}
         if effective_effort:
             extra_kwargs["reasoning_effort"] = effective_effort
+        if self.request_timeout > 0:
+            extra_kwargs["timeout"] = self.request_timeout
 
         non_retryable_exceptions = (
             NotFoundError,

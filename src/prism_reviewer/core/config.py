@@ -24,7 +24,8 @@ token = "${GITHUB_TOKEN}"
 max_requests_per_minute = "${MAX_REQUESTS_PER_MINUTE|-60}"
 max_concurrent_requests = "${MAX_CONCURRENT_REQUESTS|-10}"
 retries = "${RETRIES|-5}"
-backoff_seconds = "${BACKOFF_SECONDS|-30}"
+backoff_seconds = "${BACKOFF_SECONDS|-15}"
+request_timeout = "${LLM_REQUEST_TIMEOUT|-120}"
 
 [agents]
 mode = "${AGENTS_MODE|-parallel}"
