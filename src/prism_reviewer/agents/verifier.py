@@ -72,7 +72,7 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
         agent_counts[agent] = agent_counts.get(agent, 0) + 1
 
     node_log.record(
-        f"Raw findings received: {len(raw_findings)} "
+        f"📥 Raw findings received: {len(raw_findings)} "
         f"(warden={agent_counts.get('warden', 0)}, "
         f"architect={agent_counts.get('architect', 0)}, "
         f"inspector={agent_counts.get('inspector', 0)})"
@@ -108,9 +108,9 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
 
         verified.append(finding)
 
-    node_log.record(f"Dropped {dropped_hallucination}: line numbers not present in diff")
-    node_log.record(f"Dropped {dropped_duplicate}: duplicate signature match")
-    node_log.record(f"Verified findings: {len(verified)}")
+    node_log.record(f"🧹 Dropped {dropped_hallucination}: line numbers not present in diff (hallucinations)")
+    node_log.record(f"🔁 Dropped {dropped_duplicate}: duplicate signature match (idempotent)")
+    node_log.record(f"✅ Verified findings: {len(verified)}")
     node_log.flush()
 
     return {"verified_findings": verified}

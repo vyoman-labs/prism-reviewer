@@ -64,7 +64,7 @@ class UniversalASTAnalyzer:
         method returns immediately.
         """
         if not _TREE_SITTER_AVAILABLE:
-            logger.info(
+            logger.debug(
                 "Skipping AST grammar loading — tree-sitter runtime not available."
             )
             return
@@ -343,7 +343,7 @@ class UniversalASTAnalyzer:
         parser = self._get_parser_for_extension(ext)
         if parser is None:
             # Fallback to plain-text reading blocks if unknown/unsupported extension
-            logger.info(f"Unsupported extension '{ext}'. Falling back to plain-text description.")
+            logger.debug(f"Unsupported extension '{ext}'. Falling back to plain-text description.")
             try:
                 text_content = source_bytes.decode("utf-8", errors="ignore")
                 lines = text_content.splitlines()

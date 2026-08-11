@@ -67,8 +67,8 @@ def aggregator_node(state: ReviewState) -> Dict[str, Any]:
             counts[sev] += 1
 
     node_log.record(
-        f"Findings: CRITICAL={counts['CRITICAL']}, "
-        f"MAJOR={counts['MAJOR']}, ADVISORY={counts['ADVISORY']}"
+        f"📊 Findings tally: 🚨 {counts['CRITICAL']} CRITICAL, "
+        f"⚠️ {counts['MAJOR']} MAJOR, 💡 {counts['ADVISORY']} ADVISORY"
     )
 
     # Sort: severity tier → file → line
@@ -82,7 +82,7 @@ def aggregator_node(state: ReviewState) -> Dict[str, Any]:
     )
 
     report = _render_markdown(pr_title, sorted_findings, counts, pr_id=pr_id)
-    node_log.record(f"Report generated: {len(report)} chars")
+    node_log.record(f"📝 Report generated: {len(report)} chars")
     node_log.flush()
 
     return {"report_markdown": report}

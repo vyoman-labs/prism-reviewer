@@ -278,9 +278,9 @@ def main(argv=None):
             logger.error("LLM API key is not set. Please set LLM_PROVIDER_API_KEY in .env or environment.")
             sys.exit(1)
 
-        logger.info("PrismReviewer core process started.")
-        logger.info(f"Repository: {repo_path}")
-        logger.info(f"Base: {args.base or 'None'}")
+        logger.info("[cli] PrismReviewer core process started.")
+        logger.info(f"[cli] Repository: {repo_path}")
+        logger.info(f"[cli] Base: {args.base or 'None'}")
 
         # Resolve optional project context file
         context_path = args.context

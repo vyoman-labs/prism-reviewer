@@ -91,20 +91,29 @@ class NodeLogger:
     def record(self, message: str) -> None:
         """
         Records a log entry with elapsed time relative to node start.
+        Prefixes every line (including multi-line text) with [{self._label}].
 
         Args:
             message: The log message to buffer.
         """
         elapsed = time.monotonic() - self._start
-        self._lines.append(f"  +{elapsed:.2f}s  {message}")
+        tag = f"[{self._label}]"
+        lines = message.splitlines()
+        if not lines:
+            return
+        self._lines.append(f"{tag} +{elapsed:.2f}s  {lines[0]}")
+        for sub_line in lines[1:]:
+            self._lines.append(f"{tag}          {sub_line}")
 
     def get_block(self) -> str:
         """
         Returns the entire formatted log block string with header and footer.
+        Every line (including header and footer) is prefixed with [{self._label}].
         """
         total_elapsed = time.monotonic() - self._start
-        header = f"\u2500\u2500 {self._label} \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-        footer = f"\u2500\u2500 Total: {total_elapsed:.2f}s {'\u2500' * 20}"
+        tag = f"[{self._label}]"
+        header = f"{tag} \u2500\u2500 {self._label} \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+        footer = f"{tag} \u2500\u2500 Total: {total_elapsed:.2f}s {'\u2500' * 20}"
         return "\n" + "\n".join([header] + self._lines + [footer])
 
     def flush(self) -> None:
@@ -422,11 +431,11 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
 
     # 1. Flat repo file list
     repo_structure = _get_repo_structure(repo_path)
-    node_log.record(f"Repo structure: {len(repo_structure.splitlines())} tracked files")
+    node_log.record(f"📁 Repo structure: {len(repo_structure.splitlines())} tracked files")
 
     # 2. Extract files touched by this diff
     touched_files = _extract_touched_files(git_diff)
-    node_log.record(f"Touched files in diff: {len(touched_files)}")
+    node_log.record(f"🔍 Touched files in diff: {len(touched_files)}")
 
     # 3. AST analysis — skip gracefully if file is missing or binary
     analyzer = UniversalASTAnalyzer()
@@ -442,13 +451,13 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
         except Exception:
             skipped += 1
 
-    node_log.record(f"AST analysis: {len(ast_map)} files parsed, {skipped} skipped")
+    node_log.record(f"🌳 AST analysis: {len(ast_map)} files parsed, {skipped} skipped")
 
     # 4. Dependency scan
     dep_results = scan_dependencies(repo_path)
     codelens_dep_summary = _serialize_dep_scan(dep_results)
     total_warnings = sum(len(r.get("issues", [])) for r in dep_results)
-    node_log.record(f"Dep-scan: {len(dep_results)} manifests, {total_warnings} warnings")
+    node_log.record(f"📦 Dep-scan: {len(dep_results)} manifests, {total_warnings} warnings")
 
     # 5. Cross-reference search — find usages of touched module names
     max_search_files = Config.codelens_max_search_files()
@@ -467,7 +476,7 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
 
     codelens_search_hits = "\n".join(search_parts) if search_parts else "(no cross-reference hits found)"
     node_log.record(
-        f"Search hits: {len(search_parts)} lines (analyzed top {min(len(touched_files), max_search_files)} touched files, max_search_files={max_search_files})"
+        f"🔎 Search hits: {len(search_parts)} lines (analyzed top {min(len(touched_files), max_search_files)} touched files, max_search_files={max_search_files})"
     )
 
     # Token counting for Codelens items
@@ -478,13 +487,13 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
     codelens_total_tokens = ast_tokens + search_tokens + dep_tokens
 
     node_log.record(
-        f"Codelens Tokens: total={codelens_total_tokens} "
+        f"📊 Codelens Tokens: total={codelens_total_tokens} "
         f"(AST={ast_tokens}, Search={search_tokens}, DepScan={dep_tokens})"
     )
 
     # 6. Repository README loading & truncation
     readme_content = _load_readme_content(repo_path)
-    node_log.record(f"README content: {len(readme_content)} chars")
+    node_log.record(f"📄 README content: {len(readme_content)} chars")
 
     # 7. Partition diff into numbered regions for large PR review optimization
     max_lines = config.get("agents", {}).get("max_region_lines", 500)
@@ -495,7 +504,7 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
 
     file_diffs = split_diff_by_file(git_diff)
     regions = group_diffs_into_regions(file_diffs, max_lines)
-    node_log.record(f"Diff partitioned into {len(regions)} review regions (max_region_lines={max_lines})")
+    node_log.record(f"🧩 Diff partitioned into {len(regions)} review regions (max_region_lines={max_lines})")
 
     node_log.flush()
 
@@ -549,7 +558,7 @@ def _run_agent_node(
     if not model_name:
         raise ValueError(
             f"No LLM model configured for agent '{agent_name}'. "
-            "A model must be explicitly provided via LLM_MODEL or per-agent configuration."
+            "A model must be explicitly provided via LLM_MODEL_OVERRIDE or per-agent configuration."
         )
 
     regions = state.get("regions", [])
@@ -568,7 +577,7 @@ def _run_agent_node(
         region_states = [state]
 
     node_log.record(
-        f"Dispatching: model={model_name}, reasoning_effort={effort} ({len(region_states)} region(s))"
+        f"🚀 Dispatching: model={model_name}, reasoning_effort={effort} ({len(region_states)} region(s))"
     )
 
     all_findings: List[Finding] = []
@@ -597,7 +606,7 @@ def _run_agent_node(
         total_prompt_tokens = sys_tokens + total_user_tokens
 
         node_log.record(
-            f"[Region {idx}/{len(region_states)}] Prompt Token Breakdown (Total={total_prompt_tokens} tokens):\n"
+            f"[Region {idx}/{len(region_states)}] 📊 Prompt Token Breakdown (Total={total_prompt_tokens} tokens):\n"
             f"    [Codelens Data Tokens ({codelens_subtotal} tokens)]\n"
             f"      - AST Symbol Map:       {ast_tokens} tokens\n"
             f"      - Code Search Hits:     {search_tokens} tokens\n"
@@ -623,7 +632,7 @@ def _run_agent_node(
         total_tokens = total_prompt_tokens + output_tokens
 
         node_log.record(
-            f"[Region {idx}/{len(region_states)}] Response received: {len(raw_response)} chars | Tokens: Input={total_prompt_tokens}, Output={output_tokens}, Total={total_tokens}"
+            f"[Region {idx}/{len(region_states)}] 📥 Response received: {len(raw_response)} chars | Tokens: Input={total_prompt_tokens}, Output={output_tokens}, Total={total_tokens}"
         )
 
         r_findings = _parse_findings(raw_response, agent_name, r_state["repo_path"], node_log)
@@ -636,8 +645,8 @@ def _run_agent_node(
         if sev in counts:
             counts[sev] += 1
     node_log.record(
-        f"Parsed {len(all_findings)} total findings across {len(region_states)} region(s) "
-        f"(CRITICAL={counts['CRITICAL']}, MAJOR={counts['MAJOR']}, ADVISORY={counts['ADVISORY']})"
+        f"✅ Parsed {len(all_findings)} total findings across {len(region_states)} region(s) "
+        f"(🚨 {counts['CRITICAL']} CRITICAL, ⚠️ {counts['MAJOR']} MAJOR, 💡 {counts['ADVISORY']} ADVISORY)"
     )
 
     r_idx = state.get("current_region", {}).get("region_index", 1)
