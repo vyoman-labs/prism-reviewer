@@ -191,6 +191,7 @@ Prism Reviewer uses a centralized config system driven by [`src/prism_reviewer/p
 | Parameter | Default / Placeholder | Description |
 | --- | --- | --- |
 | `token` | `${GITHUB_TOKEN}` | GitHub Personal Access Token or Installation Token. |
+| `summary_mode` | `${PRISM_SUMMARY_MODE\|-update}` | Controls how the PR summary comment is posted on each run. `"update"` (default) edits the existing Prism Reviewer summary comment in-place. `"append"` posts a new summary comment on every push (legacy behaviour). |
 
 #### 7.1.2 Core LLM Configuration `[llm]`
 | Parameter | Default / Placeholder | Description |

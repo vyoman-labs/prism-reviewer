@@ -243,6 +243,23 @@ class Config:
         return github.get("token", "")
 
     @classmethod
+    def summary_mode(cls) -> str:
+        """
+        Returns the configured PR summary comment mode.
+
+        Returns:
+            ``"update"`` (default) — edit the existing Prism Reviewer summary
+            comment in-place on every push.
+            ``"append"`` — post a brand-new summary comment on every push
+            (legacy behaviour).
+        """
+        github = config.get("github", {})
+        mode = github.get("summary_mode", "update")
+        if mode not in ("update", "append"):
+            return "update"
+        return mode
+
+    @classmethod
     def llm_model_name(cls) -> str:
         """Returns the configured LLM model name."""
         llm = config.get("llm", {})

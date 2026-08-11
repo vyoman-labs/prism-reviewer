@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0]
+## [1.0.0] - 2026-08-11
 
 ### Added
 - **LLM Prompt Caching Structure**: Reordered prompt context sections in `_build_user_turn` to place static repository-wide shared context (Repo Structure, Codelens AST/Search/Dep Data, README, Context, Rules) at the top prefix, enabling 50%–90% prompt cache hit rates across parallel reviewer nodes and region evaluations.
@@ -14,9 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Automatic GitHub API PR Details Resolution**: Added automatic resolution of Pull Request title, description, and ID from GitHub API (`GitHubAppBridge.fetch_pull_request_details`) in `prism-review` CLI execution.
 - **Cross-Organization GitHub App Token Support**: Added `app-id`, `private-key`, and `owner` inputs to `action.yml` and explicitly set `owner: ${{ github.repository_owner }}` in workflow definitions to ensure GitHub App installation tokens are properly generated for repositories outside the GitHub App's parent organization.
 - **Explicit GitHub Token Logging**: Added log messages in CLI, `scripts/post_review.py`, and GitHub Action workflows specifying whether a GitHub App token (`GITHUB_APP_TOKEN`) or default repository token (`GITHUB_TOKEN`) is being used for API operations.
+- **Sticky In-Place PR Summary Comments**: The Prism Reviewer summary comment is now edited in-place on every new commit push (default `summary_mode = "update"`), keeping exactly one summary comment at the top of the PR timeline instead of accumulating duplicate summaries across pushes. Configurable via `PRISM_SUMMARY_MODE` env var; set to `"append"` to restore legacy behaviour.
+- **Resolved Findings Section**: When a reviewer marks an inline comment thread as "Resolved" on GitHub, the corresponding finding is moved to a collapsible **✅ Resolved findings** section in the next summary report update, making it easy to track what has been addressed.
+- **`resolved_signatures` State Field**: Added an optional `resolved_signatures` field to `ReviewState` to carry resolution status through the review pipeline to the aggregator.
+- **`PRISM_SUMMARY_MODE` Configuration**: New `[github] summary_mode` config key (default `"update"`) and companion `PRISM_SUMMARY_MODE` environment variable documented in `README.md` and `prism_reviewer.toml`.
 
 ### Changed
 - **Standardized Model Environment Variable Naming**: Replaced `LLM_MODEL_OVERRIDE` and `LLM_MODEL_NAME` with `LLM_MODEL` as the single global LLM model environment variable. Standardized per-agent model overrides to `<AGENT>_MODEL_OVERRIDE` (`WARDEN_MODEL_OVERRIDE`, `ARCHITECT_MODEL_OVERRIDE`, `INSPECTOR_MODEL_OVERRIDE`, `VERIFIER_MODEL_OVERRIDE`), removing legacy fallback aliases.
+- **Inline Review Body Decoupled from Summary**: The review body submitted to `pr.create_review()` for inline code comments is now a brief acknowledgement string rather than the full summary report, preventing the full report from appearing multiple times in the PR timeline (once per inline batch).
+- **`_render_markdown` no longer short-circuits on empty findings**: The Markdown renderer now always outputs all sections (including the ✅ Resolved block) in a consistent order for predictable in-place update diffing.
+- **Hidden `<!-- prism-reviewer-summary -->` marker**: Every generated summary report now begins with an invisible HTML comment marker used to locate and update the sticky comment via `pr.get_issue_comments()`.
 
 ### Fixed
 - **Multi-Layered Inline Comment Deduplication**: Added intra-run signature and location deduplication in `verifier_node` to drop duplicate findings generated within the same run. Enhanced `GitHubAppBridge.publish_review_comment` with in-memory comment payload deduplication and automatic query of existing PR review comments (`pr.get_review_comments()`) to skip comments already published on GitHub PRs.

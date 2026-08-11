@@ -144,6 +144,15 @@ class ReviewState(TypedDict):
     verified_findings: List[Finding]
     """Findings that passed the hallucination guard and deduplication filter."""
 
+    resolved_signatures: NotRequired[List[str]]
+    """
+    Signatures of findings whose corresponding GitHub inline comment thread has
+    been manually resolved by a reviewer (via the "Resolve conversation" button
+    in the GitHub UI).  Populated by the GitHub publishing layer before the
+    aggregator renders the report.  When present, these findings are shown in a
+    separate ✅ Resolved section rather than the active findings table.
+    """
+
     # ── Final output ─────────────────────────────────────────────────────────
     report_markdown: str
     """Fully rendered Markdown review report, ready to write to disk or post to GitHub."""

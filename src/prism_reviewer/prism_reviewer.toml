@@ -5,6 +5,9 @@ model = "${LLM_MODEL}"
 
 [github]
 token = "${GITHUB_TOKEN}"
+# "update" (default): edit existing summary comment in-place on every push.
+# "append": post a new summary comment on every push (legacy behaviour).
+summary_mode = "${PRISM_SUMMARY_MODE|-update}"
 
 [llm.thresholds]
 max_requests_per_minute = "${MAX_REQUESTS_PER_MINUTE|-60}"

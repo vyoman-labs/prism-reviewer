@@ -178,6 +178,10 @@ def test_publish_review_comment_with_inline_findings_success(mock_github_class):
     mock_repo.get_pull.return_value = mock_pr
     mock_review = MagicMock()
     mock_pr.create_review.return_value = mock_review
+    # No existing summary comment → will create a new issue comment
+    mock_pr.get_issue_comments.return_value = []
+    mock_summary_comment = MagicMock()
+    mock_pr.create_issue_comment.return_value = mock_summary_comment
 
     findings = [
         {
@@ -192,15 +196,18 @@ def test_publish_review_comment_with_inline_findings_success(mock_github_class):
     bridge = GitHubAppBridge("fake-token")
     res = bridge.publish_review_comment("owner/repo", 1, "### Review Summary", findings=findings)
 
-    assert res == mock_review
+    # The returned value is now the summary issue comment, not the review object
+    assert res == mock_summary_comment
     mock_pr.create_review.assert_called_once()
     _, kwargs = mock_pr.create_review.call_args
-    assert kwargs["body"] == "### Review Summary"
+    # Inline review body must be the minimal acknowledgement, not the full summary
+    assert "### Review Summary" not in kwargs["body"]
     assert kwargs["event"] == "COMMENT"
     assert len(kwargs["comments"]) == 1
     assert kwargs["comments"][0]["path"] == "src/main.py"
     assert kwargs["comments"][0]["line"] == 42
     assert f"Prism Reviewer AI v{__version__}" in kwargs["comments"][0]["body"]
+
 
 @patch("prism_reviewer.services.github.Github")
 def test_publish_review_comment_inline_fallback_to_issue_comment(mock_github_class):
@@ -463,4 +470,129 @@ def test_post_review_script_with_github_app_token(tmp_path):
             mock_bridge_inst.publish_review_comment.assert_called_once_with(
                 "test-owner/test-repo", 42, "## PR Review Report\n\nLooks good!", findings=None
             )
+
+
+# ── Sticky summary comment tests ─────────────────────────────────────────────
+
+@patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_update_mode_edits_existing_comment(mock_github_class):
+    """In 'update' mode, publish_review_comment must edit the existing summary
+    comment in-place when the prism-reviewer-summary marker is found."""
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+    mock_pr.get_review_comments.return_value = []
+
+    # Existing issue comment that contains the hidden marker
+    existing_comment = MagicMock()
+    existing_comment.id = 999
+    existing_comment.body = "<!-- prism-reviewer-summary -->\n# Old Report"
+    mock_pr.get_issue_comments.return_value = [existing_comment]
+
+    new_body = "<!-- prism-reviewer-summary -->\n# Updated Report"
+
+    with patch("prism_reviewer.services.github.Config.summary_mode", return_value="update"):
+        bridge = GitHubAppBridge("fake-token")
+        result = bridge.publish_review_comment("owner/repo", 1, new_body)
+
+    # Should have edited the existing comment, not created a new one
+    existing_comment.edit.assert_called_once_with(new_body)
+    mock_pr.create_issue_comment.assert_not_called()
+    assert result is existing_comment
+
+
+@patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_update_mode_creates_when_no_existing(mock_github_class):
+    """In 'update' mode, publish_review_comment must fall back to creating a
+    new issue comment when no prior summary comment exists on the PR."""
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+    mock_pr.get_review_comments.return_value = []
+    mock_pr.get_issue_comments.return_value = []  # No existing summary comment
+
+    new_comment = MagicMock()
+    new_comment.id = 1001
+    mock_pr.create_issue_comment.return_value = new_comment
+
+    new_body = "<!-- prism-reviewer-summary -->\n# First Report"
+
+    with patch("prism_reviewer.services.github.Config.summary_mode", return_value="update"):
+        bridge = GitHubAppBridge("fake-token")
+        result = bridge.publish_review_comment("owner/repo", 1, new_body)
+
+    mock_pr.create_issue_comment.assert_called_once_with(new_body)
+    assert result is new_comment
+
+
+@patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_append_mode_always_creates(mock_github_class):
+    """In 'append' mode, publish_review_comment must always create a new
+    issue comment even when a prior summary comment exists."""
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+    mock_pr.get_review_comments.return_value = []
+
+    # Even though an existing comment is present, append mode should ignore it
+    existing_comment = MagicMock()
+    existing_comment.body = "<!-- prism-reviewer-summary -->\n# Old Report"
+    mock_pr.get_issue_comments.return_value = [existing_comment]
+
+    new_comment = MagicMock()
+    new_comment.id = 1002
+    mock_pr.create_issue_comment.return_value = new_comment
+
+    new_body = "<!-- prism-reviewer-summary -->\n# New Report"
+
+    with patch("prism_reviewer.services.github.Config.summary_mode", return_value="append"):
+        bridge = GitHubAppBridge("fake-token")
+        result = bridge.publish_review_comment("owner/repo", 1, new_body)
+
+    mock_pr.create_issue_comment.assert_called_once_with(new_body)
+    existing_comment.edit.assert_not_called()
+    assert result is new_comment
+
+
+@patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_inline_body_is_not_full_summary(mock_github_class):
+    """The review body passed to pr.create_review must be a minimal
+    acknowledgement string, not a copy of the full summary report."""
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+    mock_review = MagicMock()
+    mock_pr.create_review.return_value = mock_review
+    mock_pr.get_review_comments.return_value = []
+    mock_pr.get_issue_comments.return_value = []
+
+    new_comment = MagicMock()
+    mock_pr.create_issue_comment.return_value = new_comment
+
+    findings = [
+        {"file": "src/main.py", "line": 5, "agent": "warden", "severity": "MAJOR", "message": "Issue here"},
+    ]
+    summary_body = "<!-- prism-reviewer-summary -->\n# Report\n\n## ⚠️ MAJOR\n\nTable..."
+
+    with patch("prism_reviewer.services.github.Config.summary_mode", return_value="update"):
+        bridge = GitHubAppBridge("fake-token")
+        bridge.publish_review_comment("owner/repo", 1, summary_body, findings=findings)
+
+    # The review body should NOT be the full markdown_body
+    _, kwargs = mock_pr.create_review.call_args
+    review_body: str = kwargs.get("body", "")
+    assert summary_body not in review_body
+    assert "inline findings applied" in review_body.lower() or "prism reviewer" in review_body.lower()
 
