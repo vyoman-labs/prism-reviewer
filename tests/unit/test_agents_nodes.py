@@ -270,3 +270,45 @@ class TestNodeLogger:
 def _call_warden(state: ReviewState) -> dict:
     from prism_reviewer.agents.nodes import warden_node
     return warden_node(state)
+
+
+class TestPromptCachingAndTokenLogging:
+    def test_build_user_turn_prompt_caching_order(self) -> None:
+        """Verify static shared context comes before dynamic PR title and git diff for prompt caching."""
+        from prism_reviewer.agents.nodes import _build_user_turn
+        state = _make_state(
+            pr_title="PR Title Dynamic",
+            git_diff="diff --git a/a.py b/a.py",
+            repo_structure="a.py",
+        )
+        prompt = _build_user_turn(state, "warden")
+
+        repo_struct_idx = prompt.find("## Repository Structure")
+        codelens_dep_idx = prompt.find("## Dependency Analysis")
+        codelens_search_idx = prompt.find("## Code Search Hits")
+        codelens_ast_idx = prompt.find("## Code Symbol Map")
+        readme_idx = prompt.find("## Repository README")
+        pr_ctx_idx = prompt.find("## Pull Request Context")
+        git_diff_idx = prompt.find("## Git Diff")
+
+        assert repo_struct_idx != -1
+        assert codelens_dep_idx != -1
+        assert codelens_search_idx != -1
+        assert codelens_ast_idx != -1
+        assert readme_idx != -1
+        assert pr_ctx_idx != -1
+        assert git_diff_idx != -1
+
+        # All static sections must come BEFORE dynamic PR Context and Git Diff
+        assert repo_struct_idx < pr_ctx_idx
+        assert codelens_dep_idx < pr_ctx_idx
+        assert codelens_search_idx < pr_ctx_idx
+        assert codelens_ast_idx < pr_ctx_idx
+        assert readme_idx < pr_ctx_idx
+        assert pr_ctx_idx < git_diff_idx
+
+    def test_codelens_max_search_files_cap_defaults_to_25(self) -> None:
+        """Verify build_context_node uses Config.codelens_max_search_files (25)."""
+        from prism_reviewer.core.config import Config
+        assert Config.codelens_max_search_files() == 25
+

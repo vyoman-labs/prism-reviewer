@@ -42,6 +42,9 @@ warden    = "${WARDEN_MODEL_NAME}"
 architect = "${ARCHITECT_MODEL_NAME}"
 inspector = "${INSPECTOR_MODEL_NAME}"
 verifier  = "${VERIFIER_MODEL_NAME}"
+
+[codelens]
+max_search_files = "${MAX_SEARCH_FILES|-25}"
 """
 
 
@@ -351,6 +354,16 @@ class Config:
         """
         llm = config.get("llm", {})
         return llm.get("reasoning_effort", "")
+
+    @classmethod
+    def codelens_max_search_files(cls) -> int:
+        """Returns the configured maximum number of touched files to analyze in cross-reference search."""
+        codelens = config.get("codelens", {})
+        val = codelens.get("max_search_files", 25)
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 25
 
 
 # --- Globally Exported Instance Variable ---

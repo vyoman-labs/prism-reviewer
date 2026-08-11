@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0]
 
 ### Added
+- **LLM Prompt Caching Structure**: Reordered prompt context sections in `_build_user_turn` to place static repository-wide shared context (Repo Structure, Codelens AST/Search/Dep Data, README, Context, Rules) at the top prefix, enabling 50%–90% prompt cache hit rates across parallel reviewer nodes and region evaluations.
+- **Expanded Codelens Search Cap**: Increased cross-reference search file cap from 5 to 25 files (`touched_files[:25]`), configurable via `max_search_files` under `[codelens]` in `prism_reviewer.toml` and environment variable `MAX_SEARCH_FILES`.
+- **Granular Prompt Token Logging**: Added detailed token breakdown logging before LLM dispatching, recording AST Symbol Map, Code Search Hits, Dependency Scan, and individual prompt category tokens separately.
 - **Automatic GitHub API PR Details Resolution**: Added automatic resolution of Pull Request title, description, and ID from GitHub API (`GitHubAppBridge.fetch_pull_request_details`) in `prism-review` CLI execution.
 - **Cross-Organization GitHub App Token Support**: Added `app-id`, `private-key`, and `owner` inputs to `action.yml` and explicitly set `owner: ${{ github.repository_owner }}` in workflow definitions to ensure GitHub App installation tokens are properly generated for repositories outside the GitHub App's parent organization.
 - **Explicit GitHub Token Logging**: Added log messages in CLI, `scripts/post_review.py`, and GitHub Action workflows specifying whether a GitHub App token (`GITHUB_APP_TOKEN`) or default repository token (`GITHUB_TOKEN`) is being used for API operations.

@@ -36,3 +36,7 @@ warden    = "${WARDEN_MODEL_NAME}"
 architect = "${ARCHITECT_MODEL_NAME}"
 inspector = "${INSPECTOR_MODEL_NAME}"
 verifier  = "${VERIFIER_MODEL_NAME}"
+
+[codelens]
+max_search_files = "${MAX_SEARCH_FILES|-25}"
+

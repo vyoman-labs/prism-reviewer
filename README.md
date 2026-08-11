@@ -203,10 +203,16 @@ Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](
 #### 7.1.6 Per-Agent Model Overrides `[agents.models]`
 | Agent | Default / Placeholder | Description |
 | --- | --- | --- |
-| `warden` | `${WARDEN_MODEL_NAME}` | Custom model name for the Warden agent. |
-| `architect` | `${ARCHITECT_MODEL_NAME}` | Custom model name for the Architect agent. |
-| `inspector` | `${INSPECTOR_MODEL_NAME}` | Custom model name for the Inspector agent. |
-| `verifier` | `${VERIFIER_MODEL_NAME}` | Custom model name for the Verifier agent. |
+| `warden` | `${WARDEN_MODEL_NAME}` | Model override for security agent. |
+| `architect` | `${ARCHITECT_MODEL_NAME}` | Model override for architectural agent. |
+| `inspector` | `${INSPECTOR_MODEL_NAME}` | Model override for inspector agent. |
+| `verifier` | `${VERIFIER_MODEL_NAME}` | Model override for verifier agent. |
+
+#### 7.1.7 Code Lens Analysis `[codelens]`
+| Parameter | Default / Placeholder | Description |
+| --- | --- | --- |
+| `max_search_files` | `${MAX_SEARCH_FILES\|-25}` | Maximum number of touched files analyzed in cross-reference search. |
+
 
 ---
 

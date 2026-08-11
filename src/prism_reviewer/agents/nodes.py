@@ -35,7 +35,7 @@ import re
 import time
 from typing import Any, Dict, List
 
-from ..core.config import Config, config
+from ..core.config import Config, GlobalConfig, config
 from ..core.logger import get_logger
 from ..codelens.dependency_scanner import scan_dependencies
 from ..codelens.parser import UniversalASTAnalyzer
@@ -116,6 +116,21 @@ class NodeLogger:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _count_tokens(text: str, model_name: str | None = None) -> int:
+    """
+    Estimates token count for a string using LiteLLM's token_counter,
+    falling back to character heuristic (len(text) // 4) if unavailable.
+    """
+    if not text:
+        return 0
+    try:
+        import litellm
+        model = model_name or Config.llm_model_name() or "gpt-4o"
+        return litellm.token_counter(model=model, text=text)
+    except Exception:
+        return max(1, len(text) // 4)
+
 
 def _extract_touched_files(git_diff: str) -> List[str]:
     """
@@ -253,9 +268,11 @@ def _build_user_turn(state: ReviewState, agent_name: str) -> str:
     """
     Assembles the structured, labeled user-turn message for an agent node.
 
-    Injects all available context (PR metadata, repo structure, codelens data,
-    git diff) into clearly named sections so the model can orient itself before
-    evaluating the diff.  The shared output schema is appended at the end.
+    Optimized for LLM Prompt Caching:
+    Injects static, repository-wide shared context first (Repo Structure,
+    Codelens AST/Search/Dep Data, README, Context, Rules) to maximize prompt cache
+    hits across parallel agent nodes and diff regions.  Dynamic PR metadata, git diff,
+    and output schema are appended at the end.
 
     Args:
         state:      The current ``ReviewState`` dict.
@@ -276,15 +293,9 @@ def _build_user_turn(state: ReviewState, agent_name: str) -> str:
         git_diff_header = "## Git Diff"
 
     parts = [
-        "## Pull Request Context",
-        f"Title: {state.get('pr_title') or '(no title)'}",
-        f"Description:\n{state.get('pr_description') or '(no description provided)'}",
-        "",
+        # --- Static Shared Prefix (Cacheable across all nodes & regions) ---
         "## Repository Structure",
         state.get("repo_structure") or "(not available)",
-        "",
-        "## Repository README",
-        state.get("readme_content") or "(none)",
         "",
         "## Dependency Analysis (Codelens: dep-scan)",
         state.get("codelens_dep_summary") or "(no manifests found)",
@@ -295,11 +306,19 @@ def _build_user_turn(state: ReviewState, agent_name: str) -> str:
         "## Code Symbol Map (Codelens: AST)",
         ast_text,
         "",
+        "## Repository README",
+        state.get("readme_content") or "(none)",
+        "",
         "## Project Context",
         state.get("context_content") or "(none)",
         "",
         "## Review Rules",
         state.get("rules_content") or "(none)",
+        "",
+        # --- Dynamic Suffix (PR-specific / Region-specific) ---
+        "## Pull Request Context",
+        f"Title: {state.get('pr_title') or '(no title)'}",
+        f"Description:\n{state.get('pr_description') or '(no description provided)'}",
         "",
         git_diff_header,
         state.get("git_diff") or "(empty diff)",
@@ -431,9 +450,10 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
     node_log.record(f"Dep-scan: {len(dep_results)} manifests, {total_warnings} warnings")
 
     # 5. Cross-reference search — find usages of touched module names
+    max_search_files = Config.codelens_max_search_files()
     search_parts: List[str] = []
     seen_files = set(touched_files)
-    for rel_path in touched_files[:5]:  # cap to avoid excessive context
+    for rel_path in touched_files[:max_search_files]:
         basename = os.path.splitext(os.path.basename(rel_path))[0]
         if not basename or basename in ("__init__", "index"):
             continue
@@ -445,7 +465,21 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
                 search_parts.append(f"  {h['file']}:{h['line_number']}: {h['content']}")
 
     codelens_search_hits = "\n".join(search_parts) if search_parts else "(no cross-reference hits found)"
-    node_log.record(f"Search hits: {len(search_parts)} lines")
+    node_log.record(
+        f"Search hits: {len(search_parts)} lines (analyzed top {min(len(touched_files), max_search_files)} touched files, max_search_files={max_search_files})"
+    )
+
+    # Token counting for Codelens items
+    ast_serialized = _serialize_ast_map(ast_map)
+    ast_tokens = _count_tokens(ast_serialized)
+    search_tokens = _count_tokens(codelens_search_hits)
+    dep_tokens = _count_tokens(codelens_dep_summary)
+    codelens_total_tokens = ast_tokens + search_tokens + dep_tokens
+
+    node_log.record(
+        f"Codelens Tokens: total={codelens_total_tokens} "
+        f"(AST={ast_tokens}, Search={search_tokens}, DepScan={dep_tokens})"
+    )
 
     # 6. Repository README loading & truncation
     readme_content = _load_readme_content(repo_path)
@@ -520,9 +554,48 @@ def _run_agent_node(
         f"(reasoning_effort={effort}) — waiting for LLM response..."
     )
 
+    user_turn = _build_user_turn(state, agent_name)
+
+    # Calculate token breakdown per category for node logging
+    sys_tokens = _count_tokens(system_prompt, model_name)
+    ast_tokens = _count_tokens(_serialize_ast_map(state.get("ast_map", {})), model_name)
+    search_tokens = _count_tokens(state.get("codelens_search_hits") or "", model_name)
+    dep_tokens = _count_tokens(state.get("codelens_dep_summary") or "", model_name)
+    codelens_subtotal = ast_tokens + search_tokens + dep_tokens
+
+    repo_struct_tokens = _count_tokens(state.get("repo_structure") or "", model_name)
+    readme_tokens = _count_tokens(state.get("readme_content") or "", model_name)
+    context_tokens = _count_tokens(state.get("context_content") or "", model_name)
+    rules_tokens = _count_tokens(state.get("rules_content") or "", model_name)
+
+    pr_title_desc = f"Title: {state.get('pr_title') or ''}\nDescription:\n{state.get('pr_description') or ''}"
+    pr_meta_tokens = _count_tokens(pr_title_desc, model_name)
+    diff_tokens = _count_tokens(state.get("git_diff") or "", model_name)
+    schema_tokens = _count_tokens(OUTPUT_SCHEMA_BLOCK, model_name)
+
+    total_user_tokens = _count_tokens(user_turn, model_name)
+    total_prompt_tokens = sys_tokens + total_user_tokens
+
+    node_log.record(
+        f"Prompt Token Breakdown (Total={total_prompt_tokens} tokens):\n"
+        f"    [Codelens Data Tokens ({codelens_subtotal} tokens)]\n"
+        f"      - AST Symbol Map:       {ast_tokens} tokens\n"
+        f"      - Code Search Hits:     {search_tokens} tokens\n"
+        f"      - Dependency Scan:      {dep_tokens} tokens\n"
+        f"    [Other Prompt Category Tokens]\n"
+        f"      - System Prompt:        {sys_tokens} tokens\n"
+        f"      - Repo Structure:       {repo_struct_tokens} tokens\n"
+        f"      - Repository README:    {readme_tokens} tokens\n"
+        f"      - Project Context:      {context_tokens} tokens\n"
+        f"      - Review Rules:         {rules_tokens} tokens\n"
+        f"      - PR Metadata:          {pr_meta_tokens} tokens\n"
+        f"      - Git Diff:             {diff_tokens} tokens\n"
+        f"      - Output Schema:        {schema_tokens} tokens"
+    )
+
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": _build_user_turn(state, agent_name)},
+        {"role": "user", "content": user_turn},
     ]
 
     client = ResilientLLMClient(config._data)
