@@ -33,4 +33,4 @@ jobs:
 
           # Optional: Custom GitHub token (GitHub App Installation token, PAT, or default GITHUB_TOKEN)
           # Default: ${{ github.token }} (posts comment as github-actions[bot])
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: github-token: ${{ steps.resolve-token.outputs.token }}
