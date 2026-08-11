@@ -300,7 +300,28 @@ class GitHubAppBridge:
             repo = self.g.get_repo(repo_name)
             pr = repo.get_pull(pr_number)
 
-            # ── Inline comments ───────────────────────────────────────────────
+            # ── Summary comment FIRST (sticky update or create) ───────────────
+            # Post the summary before inline comments so it always appears at
+            # the top of the PR timeline on first run (PR `opened` event).
+            summary_mode = Config.summary_mode()
+            summary_comment: Any
+            if summary_mode == "update":
+                existing_summary = self._find_existing_summary_comment(pr)
+                if existing_summary is not None:
+                    existing_summary.edit(markdown_body)
+                    logger.info(
+                        f"Updated existing summary comment ID {existing_summary.id} in-place."
+                    )
+                    summary_comment = existing_summary
+                else:
+                    summary_comment = pr.create_issue_comment(markdown_body)
+                    logger.info(f"Successfully published summary comment ID {summary_comment.id}")
+            else:
+                # append mode — always create a new summary comment
+                summary_comment = pr.create_issue_comment(markdown_body)
+                logger.info(f"Successfully published summary comment ID {summary_comment.id}")
+
+            # ── Inline comments AFTER summary ─────────────────────────────────
             inline_comments: List[Dict[str, Any]] = []
             if findings:
                 from .. import __version__
@@ -382,13 +403,12 @@ class GitHubAppBridge:
             if inline_comments:
                 try:
                     # Use a minimal review body — the full summary lives in the
-                    # sticky issue comment, not duplicated inside each review.
+                    # sticky issue comment posted above, not duplicated here.
                     review = pr.create_review(
                         body="*Prism Reviewer — inline findings applied. See summary comment above.*",
                         comments=cast(Any, inline_comments),
                         event="COMMENT",
                     )
-
                     logger.info(f"Successfully published PR review with {len(inline_comments)} inline comments")
                 except Exception as inline_err:
                     logger.warning(
@@ -409,21 +429,7 @@ class GitHubAppBridge:
                             f"Successfully published {len(valid_inline_comments)} of {len(inline_comments)} inline comments individually."
                         )
 
-            # ── Summary comment (sticky update or append) ─────────────────────
-            summary_mode = Config.summary_mode()
-            if summary_mode == "update":
-                existing_summary = self._find_existing_summary_comment(pr)
-                if existing_summary is not None:
-                    existing_summary.edit(markdown_body)
-                    logger.info(
-                        f"Updated existing summary comment ID {existing_summary.id} in-place."
-                    )
-                    return existing_summary
-
-            # Either append mode, or update mode with no prior summary comment
-            comment = pr.create_issue_comment(markdown_body)
-            logger.info(f"Successfully published comment ID {comment.id}")
-            return comment
+            return summary_comment
         except Exception as e:
             logger.error(f"Failed to publish review comment to {repo_name} #{pr_number}: {e}")
             raise RuntimeError(f"Failed to publish review comment: {e}") from e
