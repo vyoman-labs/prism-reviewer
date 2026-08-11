@@ -5,16 +5,6 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      publish_testpypi:
-        description: 'Publish package to TestPyPI (test.pypi.org)'
-        type: boolean
-        required: true
-        default: true
-      publish_pypi:
-        description: 'Publish package to PyPI (pypi.org)'
-        type: boolean
-        required: true
-        default: false
       tag_name:
         description: 'Release Tag / Version (e.g. v1.0.0, optional if release already exists)'
         type: string
@@ -29,14 +19,9 @@ permissions:
   contents: write
 
 jobs:
-  build-and-publish:
-    name: Build and publish Python distribution
-    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.publish_testpypi == true || inputs.publish_testpypi == 'true' || inputs.publish_pypi == true || inputs.publish_pypi == 'true')) }}
+  build:
+    name: Build Python distribution
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write # Mandatory for PyPI/TestPyPI OIDC Trusted Publishing
-      contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -56,8 +41,27 @@ jobs:
       - name: Build package distributions (sdist and wheel)
         run: python -m build
 
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  create-release:
+    name: Create GitHub Release
+    needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.create_release == true || inputs.create_release == 'true') && inputs.tag_name != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
       - name: Create GitHub Release
-        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.create_release == true || inputs.create_release == 'true') && inputs.tag_name != '' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag_name }}
@@ -67,15 +71,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish distribution to TestPyPI
-        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.publish_testpypi == true || inputs.publish_testpypi == 'true')) }}
-        uses: pypa/gh-action-pypi-publish@release/v1
+  publish-pypi:
+    name: Publish distribution to PyPI
+    needs: build
+    if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/prism-reviewer
+    permissions:
+      id-token: write # Mandatory for PyPI/TestPyPI OIDC Trusted Publishing
+      contents: read
+
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
         with:
-          repository-url: https://test.pypi.org/legacy/
-          skip-existing: true
+          name: python-package-distributions
+          path: dist/
 
       - name: Publish distribution to PyPI
-        if: ${{ (github.event_name == 'release' && (contains(github.event.release.body, '[pypi]') || contains(github.event.release.body, '[publish-pypi]'))) || (github.event_name == 'workflow_dispatch' && (inputs.publish_pypi == true || inputs.publish_pypi == 'true')) }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
