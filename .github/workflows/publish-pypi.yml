@@ -68,14 +68,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish distribution to TestPyPI
-        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.publish_testpypi == true || inputs.publish_testpypi == 'true') }}
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.publish_testpypi == true || inputs.publish_testpypi == 'true')) }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
           skip-existing: true
 
       - name: Publish distribution to PyPI
-        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.publish_pypi == true || inputs.publish_pypi == 'true')) }}
+        if: ${{ (github.event_name == 'release' && (contains(github.event.release.body, '[pypi]') || contains(github.event.release.body, '[publish-pypi]'))) || (github.event_name == 'workflow_dispatch' && (inputs.publish_pypi == true || inputs.publish_pypi == 'true')) }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true

@@ -132,14 +132,22 @@ To enable publication, configure one of the following authentication methods on 
 ### 5.6 Automated Production PyPI Publishing via GitHub Actions
 Production releases to PyPI are managed via the dedicated [publish-pypi.yml](.github/workflows/publish-pypi.yml) workflow.
 
-#### Explicit Release & Publishing Toggle
-To trigger a PyPI publish with explicit controls:
+#### Explicit Release & Publishing Toggles
+You can toggle PyPI publishing in **two convenient ways**:
+
+##### Method 1: Standard GitHub Release Form (`releases/new`)
+1. Create a release as usual at `https://github.com/vyoman-labs/prism-reviewer/releases/new`.
+2. By default, publishing goes to **TestPyPI**.
+3. To **enable PyPI publishing**, simply include `[pypi]` or `[publish-pypi]` anywhere in the **Release description / notes** field.
+
+##### Method 2: Visual Checkbox Form (GitHub Actions Tab)
+*(GitHub's native release page does not support custom HTML form checkboxes, so a visual UI form is available in GitHub Actions)*:
 1. Navigate to **Actions** > **Publish Package to PyPI** in your GitHub repository.
-2. Click **Run workflow** and configure the dispatch inputs:
-   - **`publish_testpypi`**: Checkbox toggle to publish to TestPyPI (`test.pypi.org`) (Default: **`true`**).
-   - **`publish_pypi`**: Checkbox toggle to publish to PyPI (`pypi.org`) (Default: **`false`**).
+2. Click **Run workflow** to open the visual checkbox modal:
+   - **`publish_testpypi`**: Checkbox to publish to TestPyPI (`test.pypi.org`) (Default: **`true`**).
+   - **`publish_pypi`**: Checkbox to publish to PyPI (`pypi.org`) (Default: **`false`**).
    - **`tag_name`**: *(Optional)* Release version tag (e.g., `v1.0.0`).
-   - **`create_release`**: *(Optional)* Checkbox toggle to automatically create/publish a GitHub Release for the tag.
+   - **`create_release`**: *(Optional)* Checkbox toggle to automatically create/publish the GitHub Release for you.
 
 #### OIDC Trusted Publishing Setup for PyPI
 To enable automated publication without managing API tokens:
