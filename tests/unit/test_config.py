@@ -2,11 +2,11 @@ import os
 import pytest
 from prism_reviewer.core.config import config, GlobalConfig, Config
 
-# Clean mock copy mirroring your exact file structure rules (using LLM_MODEL_OVERRIDE)
+# Clean mock copy mirroring your exact file structure rules (using LLM_MODEL)
 MOCK_TOML = """
 [llm]
 api_key = "${LLM_PROVIDER_API_KEY|-}"
-model = "${LLM_MODEL_OVERRIDE|-gpt-4o}"
+model = "${LLM_MODEL|-gpt-4o}"
 
 [github]
 token = "${GITHUB_TOKEN}"
@@ -29,7 +29,7 @@ def toml_file(tmp_path):
 def wipe_environment_leaks():
     """Ensures test-specific environment strings don't leak between assertion cycles."""
     targets = [
-        "GITHUB_TOKEN", "GITHUB_APP_TOKEN", "LLM_PROVIDER_API_KEY", "LLM_MODEL_OVERRIDE", 
+        "GITHUB_TOKEN", "GITHUB_APP_TOKEN", "LLM_PROVIDER_API_KEY", "LLM_MODEL", 
         "MAX_REQUESTS_PER_MINUTE", "MAX_CONCURRENT_REQUESTS", 
         "RETRIES", "BACKOFF_SECONDS"
     ]
@@ -64,22 +64,13 @@ def test_default_fallbacks_with_empty_environment(toml_file):
 def test_environment_variables_actively_override_defaults(toml_file):
     """Confirms live exported variables correctly override default static fallbacks."""
     os.environ["LLM_PROVIDER_API_KEY"] = "live_token_abc123"
-    os.environ["LLM_MODEL_OVERRIDE"] = "claude-3.5-sonnet"
+    os.environ["LLM_MODEL"] = "claude-3.5-sonnet"
     os.environ["BACKOFF_SECONDS"] = "12"
     
     config.reset_for_testing(toml_file)
     
     assert config["llm"]["api_key"] == "live_token_abc123"
     assert config["llm"]["model"] == "claude-3.5-sonnet"
-    
-def test_llm_model_name_environment_alias(toml_file):
-    """Confirms setting LLM_MODEL_NAME populates model when LLM_MODEL_OVERRIDE is not set."""
-    os.environ.pop("LLM_MODEL_OVERRIDE", None)
-    os.environ["LLM_MODEL_NAME"] = "gemini/gemini-2.5-flash"
-    
-    config.reset_for_testing(toml_file)
-    assert config["llm"]["model"] == "gemini/gemini-2.5-flash"
-    os.environ.pop("LLM_MODEL_NAME", None)
 
 
 def test_missing_file_throws_correct_exception():
@@ -119,7 +110,7 @@ def test_dotenv_file_loading_populates_placeholders(tmp_path):
     env_file.write_text(
         "GITHUB_TOKEN=ghp_secret_token_123456789\n"
         "LLM_PROVIDER_API_KEY=sk-env-key-987654321\n"
-        "LLM_MODEL_OVERRIDE=claude-3-5-sonnet\n",
+        "LLM_MODEL=claude-3-5-sonnet\n",
         encoding="utf-8"
     )
 
@@ -129,7 +120,7 @@ def test_dotenv_file_loading_populates_placeholders(tmp_path):
 
     [llm]
     api_key = "${LLM_PROVIDER_API_KEY}"
-    model = "${LLM_MODEL_OVERRIDE}"
+    model = "${LLM_MODEL}"
     """
     toml_path = tmp_path / "prism_reviewer.toml"
     toml_path.write_text(toml_content, encoding="utf-8")
@@ -137,7 +128,7 @@ def test_dotenv_file_loading_populates_placeholders(tmp_path):
     # Wipe environment variables first to test .env loading
     os.environ.pop("GITHUB_TOKEN", None)
     os.environ.pop("LLM_PROVIDER_API_KEY", None)
-    os.environ.pop("LLM_MODEL_OVERRIDE", None)
+    os.environ.pop("LLM_MODEL", None)
 
     Config.load(file_path=str(toml_path), env_file=str(env_file))
 
@@ -157,20 +148,20 @@ def test_dotenv_local_precedence(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     env_file = tmp_path / ".env"
-    env_file.write_text("LLM_MODEL_OVERRIDE=gpt-4o-env\n", encoding="utf-8")
+    env_file.write_text("LLM_MODEL=gpt-4o-env\n", encoding="utf-8")
 
     env_local = tmp_path / ".env.local"
-    env_local.write_text("LLM_MODEL_OVERRIDE=gpt-4o-local\n", encoding="utf-8")
+    env_local.write_text("LLM_MODEL=gpt-4o-local\n", encoding="utf-8")
 
     toml_content = """
     [llm]
     api_key = "dummy"
-    model = "${LLM_MODEL_OVERRIDE}"
+    model = "${LLM_MODEL}"
     """
     toml_path = tmp_path / "prism_reviewer.toml"
     toml_path.write_text(toml_content, encoding="utf-8")
 
-    os.environ.pop("LLM_MODEL_OVERRIDE", None)
+    os.environ.pop("LLM_MODEL", None)
 
     Config.load(file_path=str(toml_path))
     assert Config.llm_model_name() == "gpt-4o-local"

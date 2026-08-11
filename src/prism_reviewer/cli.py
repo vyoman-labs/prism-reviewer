@@ -272,7 +272,7 @@ def main(argv=None):
             or any(Config.agent_model_name(agent) for agent in ["warden", "architect", "inspector"])
         )
         if not has_model:
-            logger.error("No LLM model configuration is set. Please set LLM_MODEL_OVERRIDE.")
+            logger.error("No LLM model configuration is set. Please set LLM_MODEL.")
             sys.exit(1)
         if not Config.llm_api_key():
             logger.error("LLM API key is not set. Please set LLM_PROVIDER_API_KEY in .env or environment.")

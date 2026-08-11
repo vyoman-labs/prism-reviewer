@@ -549,7 +549,7 @@ def _run_agent_node(
     if not model_name:
         raise ValueError(
             f"No LLM model configured for agent '{agent_name}'. "
-            "A model must be explicitly provided via LLM_MODEL_OVERRIDE or per-agent configuration."
+            "A model must be explicitly provided via LLM_MODEL or per-agent configuration."
         )
 
     regions = state.get("regions", [])

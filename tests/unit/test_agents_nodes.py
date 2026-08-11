@@ -10,14 +10,14 @@ from prism_reviewer.agents.state import Finding, ReviewState
 
 @pytest.fixture(autouse=True)
 def set_model_env() -> Generator[None, None, None]:
-    """Ensures LLM_MODEL_OVERRIDE is set for agent node tests."""
-    old = os.environ.get("LLM_MODEL_OVERRIDE")
-    os.environ["LLM_MODEL_OVERRIDE"] = "test-agent-model"
+    """Ensures LLM_MODEL is set for agent node tests."""
+    old = os.environ.get("LLM_MODEL")
+    os.environ["LLM_MODEL"] = "test-agent-model"
     yield
     if old is None:
-        os.environ.pop("LLM_MODEL_OVERRIDE", None)
+        os.environ.pop("LLM_MODEL", None)
     else:
-        os.environ["LLM_MODEL_OVERRIDE"] = old
+        os.environ["LLM_MODEL"] = old
 
 
 def _make_state(**overrides: Any) -> ReviewState:
@@ -45,26 +45,50 @@ def _make_state(**overrides: Any) -> ReviewState:
 
 
 def _advisory_finding_json(agent: str = "warden") -> str:
-    """Returns a valid JSON findings response using ADVISORY severity only."""
+    """Returns valid JSON matching Finding structure."""
     return json.dumps({
         "findings": [
             {
-                "file": "foo.py",
-                "line": 2,
-                "severity": "ADVISORY",
-                "agent": agent,
-                "message": "Test finding from fixture",
+                "id": f"{agent}-001",
+                "file_path": "foo.py",
+                "line_number": 2,
+                "category": "security" if agent == "warden" else "architecture",
+                "severity": "MEDIUM",
+                "title": f"Sample Finding from {agent}",
+                "description": "Something potentially wrong here.",
+                "suggestion": "Fix it this way.",
+                "confidence": "HIGH",
             }
         ]
     })
 
 
-def _patch_llm(return_value: str):
-    """Returns a patch context manager for ResilientLLMClient.completion_with_retry."""
-    return patch(
-        "prism_reviewer.agents.nodes.ResilientLLMClient.completion_with_retry",
-        return_value=return_value,
-    )
+def _patch_llm(mock_response: str) -> Any:
+    """Helper to patch litellm.completion."""
+    mock_resp = MagicMock()
+    mock_resp.choices = [MagicMock()]
+    mock_resp.choices[0].message.content = mock_response
+    return patch("litellm.completion", return_value=mock_resp)
+
+
+def _call_warden(state: ReviewState) -> dict:
+    from prism_reviewer.agents.nodes import warden_node
+    return warden_node(state)
+
+
+def _call_architect(state: ReviewState) -> dict:
+    from prism_reviewer.agents.nodes import architect_node
+    return architect_node(state)
+
+
+def _call_inspector(state: ReviewState) -> dict:
+    from prism_reviewer.agents.nodes import inspector_node
+    return inspector_node(state)
+
+
+def _call_verifier(state: ReviewState) -> dict:
+    from prism_reviewer.agents.nodes import verifier_node
+    return verifier_node(state)
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +101,7 @@ class TestWardenNode:
         from prism_reviewer.core.config import config
         empty_toml = tmp_path / "empty.toml"
         empty_toml.write_text("[llm]\napi_key=''\nmodel=''\n", encoding="utf-8")
-        for key in ["LLM_MODEL_OVERRIDE", "WARDEN_MODEL_NAME", "ARCHITECT_MODEL_NAME", "INSPECTOR_MODEL_NAME", "VERIFIER_MODEL_NAME"]:
+        for key in ["LLM_MODEL", "WARDEN_MODEL_OVERRIDE", "ARCHITECT_MODEL_OVERRIDE", "INSPECTOR_MODEL_OVERRIDE", "VERIFIER_MODEL_OVERRIDE"]:
             os.environ.pop(key, None)
         config.reset_for_testing(str(empty_toml))
         try:
@@ -85,7 +109,7 @@ class TestWardenNode:
             with pytest.raises(ValueError, match="No LLM model configured for agent 'warden'"):
                 _call_warden(state)
         finally:
-            os.environ["LLM_MODEL_OVERRIDE"] = "test-agent-model"
+            os.environ["LLM_MODEL"] = "test-agent-model"
             config.reset_for_testing()
 
     def test_warden_returns_raw_findings_key(self) -> None:

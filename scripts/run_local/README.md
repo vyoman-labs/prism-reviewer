@@ -31,7 +31,7 @@ Edit `.env`:
 ```env
 GITHUB_TOKEN=your_github_personal_access_token
 LLM_PROVIDER_API_KEY=your_llm_provider_api_key
-LLM_MODEL_OVERRIDE=gpt-4o
+LLM_MODEL=gpt-4o
 ```
 
 **Option B: Setting terminal environment variables**
@@ -40,7 +40,7 @@ LLM_MODEL_OVERRIDE=gpt-4o
 export GITHUB_TOKEN="your_github_personal_access_token"
 
 # LLM Provider Configuration
-export LLM_MODEL_OVERRIDE="gpt-4o"  # Or anthropic/claude-3-5-sonnet, gemini-1.5-pro, etc.
+export LLM_MODEL="gpt-4o"  # Or anthropic/claude-3-5-sonnet, gemini-1.5-pro, etc.
 export LLM_PROVIDER_API_KEY="your_llm_provider_api_key"
 ```
 

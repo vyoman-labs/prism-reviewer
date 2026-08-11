@@ -57,7 +57,7 @@ jobs:
       - name: Execute AI Code Review
         env:
           LLM_PROVIDER_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }}
-          LLM_MODEL_OVERRIDE: ${{ secrets.LLM_MODEL_OVERRIDE || secrets.LLM_MODEL_NAME || 'gemini/gemini-3.1-flash-lite' }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL || 'gemini/gemini-3.1-flash-lite' }}
           GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
           GITHUB_APP_TOKEN: ${{ steps.resolve-token.outputs.app_token }}
           GITHUB_REPOSITORY: ${{ github.repository }}

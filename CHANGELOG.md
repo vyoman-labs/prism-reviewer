@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cross-Organization GitHub App Token Support**: Added `app-id`, `private-key`, and `owner` inputs to `action.yml` and explicitly set `owner: ${{ github.repository_owner }}` in workflow definitions to ensure GitHub App installation tokens are properly generated for repositories outside the GitHub App's parent organization.
 - **Explicit GitHub Token Logging**: Added log messages in CLI, `scripts/post_review.py`, and GitHub Action workflows specifying whether a GitHub App token (`GITHUB_APP_TOKEN`) or default repository token (`GITHUB_TOKEN`) is being used for API operations.
 
+### Changed
+- **Standardized Model Environment Variable Naming**: Replaced `LLM_MODEL_OVERRIDE` and `LLM_MODEL_NAME` with `LLM_MODEL` as the single global LLM model environment variable. Standardized per-agent model overrides to `<AGENT>_MODEL_OVERRIDE` (`WARDEN_MODEL_OVERRIDE`, `ARCHITECT_MODEL_OVERRIDE`, `INSPECTOR_MODEL_OVERRIDE`, `VERIFIER_MODEL_OVERRIDE`), removing legacy fallback aliases.
+
 ### Fixed
 - **Unbuffered Rate Limit & Retry Warning Logging**: Added explicit `sys.stdout.flush()` call before sleeping on LLM rate-limit retries in `ResilientLLMClient` and set `PYTHONUNBUFFERED="1"` in `action.yml` step execution. This delivers instant, real-time warning logs to GitHub Actions console windows without breaking the non-interleaved log buffering of normal agent node outputs.
 - **Buffered Parallel Node Execution & Sequential Logging**: Restored full parallel agent fan-out across council nodes (`warden`, `architect`, `inspector`) and diff regions while buffering output blocks into state. Log blocks are flushed sequentially in rank order at the verifier node, combining maximum parallel execution speed with 100% linear, non-interleaved log outputs.

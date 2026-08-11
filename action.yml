@@ -84,7 +84,7 @@ runs:
       env:
         PYTHONUNBUFFERED: "1"
         LLM_PROVIDER_API_KEY: ${{ inputs.llm-api-key }}
-        LLM_MODEL_OVERRIDE: ${{ inputs.llm-model-name }}
+        LLM_MODEL: ${{ inputs.llm-model-name }}
         GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
         GITHUB_APP_TOKEN: ${{ steps.resolve-token.outputs.app_token }}
         AGENTS_MODE: ${{ inputs.agents-mode }}

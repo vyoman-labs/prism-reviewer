@@ -9,7 +9,7 @@ locally.
 Requirements:
 - Install the package in editable mode: pip install -e .
 - Set GITHUB_TOKEN (or pass via --token)
-- Set LLM_PROVIDER_API_KEY and LLM_MODEL_NAME
+- Set LLM_PROVIDER_API_KEY and LLM_MODEL
 """
 
 import argparse
@@ -107,7 +107,7 @@ def main():
     model_name = Config.llm_model_name()
     api_key = Config.llm_api_key()
     if not model_name:
-        logger.error("LLM_MODEL_NAME (or LLM_MODEL_OVERRIDE) is not set in .env, config, or environment.")
+        logger.error("LLM_MODEL is not set in .env, config, or environment.")
         sys.exit(1)
     if not api_key:
         logger.error("LLM_PROVIDER_API_KEY (or LLM_MODEL_API_KEY) is not set in .env, config, or environment.")

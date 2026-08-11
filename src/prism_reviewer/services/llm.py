@@ -50,7 +50,7 @@ class ResilientLLMClient:
         Reads ``api_key`` and ``model`` from the
         :class:`~prism_reviewer.core.config.Config` singleton (backed by
         ``prism_reviewer.toml`` and the corresponding environment variables:
-        ``LLM_PROVIDER_API_KEY`` and ``LLM_MODEL_NAME``).
+        ``LLM_PROVIDER_API_KEY`` and ``LLM_MODEL``).
 
         The ``reasoning_effort`` parameter lets individual callers (e.g. agent
         nodes) override the global ``Config.llm_reasoning_effort()`` value on a
@@ -82,7 +82,7 @@ class ResilientLLMClient:
         if not model_name:
             raise ValueError(
                 "No LLM model configured. "
-                "A model must be explicitly provided via LLM_MODEL_OVERRIDE or passed to completion_with_retry."
+                "A model must be explicitly provided via LLM_MODEL or passed to completion_with_retry."
             )
         # Resolve effective reasoning effort: default to empty string if not provided
         effective_effort = reasoning_effort or ""

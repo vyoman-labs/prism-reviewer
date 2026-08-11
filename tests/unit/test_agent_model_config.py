@@ -1,5 +1,5 @@
 """
-Tests for per-agent model configuration and fallback propagation logic using LLM_MODEL_OVERRIDE.
+Tests for per-agent model configuration and fallback propagation logic using LLM_MODEL.
 """
 
 import os
@@ -9,17 +9,17 @@ import pytest
 from prism_reviewer.core.config import Config, config
 
 
-# Mock TOML structure for testing configuration loading (no LLM_MODEL_NAME)
+# Mock TOML structure for testing configuration loading
 TEST_MOCK_TOML = """
 [llm]
 api_key = "${LLM_PROVIDER_API_KEY|-}"
-model = "${LLM_MODEL_OVERRIDE|-}"
+model = "${LLM_MODEL|-}"
 
 [agents.models]
-warden = "${WARDEN_MODEL_NAME|-}"
-architect = "${ARCHITECT_MODEL_NAME|-}"
-inspector = "${INSPECTOR_MODEL_NAME|-}"
-verifier = "${VERIFIER_MODEL_NAME|-}"
+warden = "${WARDEN_MODEL_OVERRIDE|-}"
+architect = "${ARCHITECT_MODEL_OVERRIDE|-}"
+inspector = "${INSPECTOR_MODEL_OVERRIDE|-}"
+verifier = "${VERIFIER_MODEL_OVERRIDE|-}"
 """
 
 @pytest.fixture
@@ -34,11 +34,11 @@ def clean_environment() -> Generator[None, None, None]:
     """Ensures test-specific environment strings don't leak between assertion cycles."""
     targets = [
         "LLM_PROVIDER_API_KEY",
-        "LLM_MODEL_OVERRIDE",
-        "WARDEN_MODEL_NAME",
-        "ARCHITECT_MODEL_NAME",
-        "INSPECTOR_MODEL_NAME",
-        "VERIFIER_MODEL_NAME"
+        "LLM_MODEL",
+        "WARDEN_MODEL_OVERRIDE",
+        "ARCHITECT_MODEL_OVERRIDE",
+        "INSPECTOR_MODEL_OVERRIDE",
+        "VERIFIER_MODEL_OVERRIDE"
     ]
     # Remove from env
     for target in targets:
@@ -60,8 +60,8 @@ def test_default_agent_model_no_fallback(toml_file_path: str) -> None:
 
 
 def test_single_global_model_sets_all_agents(toml_file_path: str) -> None:
-    """Tests that setting only LLM_MODEL_OVERRIDE configures all agents to use that model."""
-    os.environ["LLM_MODEL_OVERRIDE"] = "claude-3-opus"
+    """Tests that setting only LLM_MODEL configures all agents to use that model."""
+    os.environ["LLM_MODEL"] = "claude-3-opus"
     config.reset_for_testing(toml_file_path)
     
     assert Config.agent_model_name("warden") == "claude-3-opus"
@@ -72,7 +72,7 @@ def test_single_global_model_sets_all_agents(toml_file_path: str) -> None:
 
 def test_single_agent_model_sets_all_agents(toml_file_path: str) -> None:
     """Tests that when only one agent model config is set, it propagates to all agents."""
-    os.environ["WARDEN_MODEL_NAME"] = "gemini-1.5-pro"
+    os.environ["WARDEN_MODEL_OVERRIDE"] = "gemini-1.5-pro"
     config.reset_for_testing(toml_file_path)
     
     assert Config.agent_model_name("warden") == "gemini-1.5-pro"
@@ -83,9 +83,9 @@ def test_single_agent_model_sets_all_agents(toml_file_path: str) -> None:
 
 def test_multiple_distinct_model_configs(toml_file_path: str) -> None:
     """Tests that if multiple model configs are set, agents use their respective overrides or fallback."""
-    os.environ["LLM_MODEL_OVERRIDE"] = "global-model"
-    os.environ["WARDEN_MODEL_NAME"] = "warden-model"
-    os.environ["INSPECTOR_MODEL_NAME"] = "inspector-model"
+    os.environ["LLM_MODEL"] = "global-model"
+    os.environ["WARDEN_MODEL_OVERRIDE"] = "warden-model"
+    os.environ["INSPECTOR_MODEL_OVERRIDE"] = "inspector-model"
     
     config.reset_for_testing(toml_file_path)
     
@@ -93,7 +93,7 @@ def test_multiple_distinct_model_configs(toml_file_path: str) -> None:
     assert Config.agent_model_name("warden") == "warden-model"
     # inspector should use its override
     assert Config.agent_model_name("inspector") == "inspector-model"
-    # architect should fallback to global (LLM_MODEL_OVERRIDE)
+    # architect should fallback to global (LLM_MODEL)
     assert Config.agent_model_name("architect") == "global-model"
-    # verifier should fallback to global (LLM_MODEL_OVERRIDE)
+    # verifier should fallback to global (LLM_MODEL)
     assert Config.agent_model_name("verifier") == "global-model"

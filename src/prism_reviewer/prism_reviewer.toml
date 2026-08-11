@@ -1,7 +1,7 @@
 # Environment variable placeholders (override defaults if set)
 [llm]
 api_key = "${LLM_PROVIDER_API_KEY}"
-model = "${LLM_MODEL_OVERRIDE}"
+model = "${LLM_MODEL}"
 
 [github]
 token = "${GITHUB_TOKEN}"
@@ -33,10 +33,10 @@ verifier  = "${VERIFIER_REASONING_EFFORT|-low}"
 
 [agents.models]
 # Per-agent model overrides. If any of these are set, they override the global LLM model.
-warden    = "${WARDEN_MODEL_NAME}"
-architect = "${ARCHITECT_MODEL_NAME}"
-inspector = "${INSPECTOR_MODEL_NAME}"
-verifier  = "${VERIFIER_MODEL_NAME}"
+warden    = "${WARDEN_MODEL_OVERRIDE}"
+architect = "${ARCHITECT_MODEL_OVERRIDE}"
+inspector = "${INSPECTOR_MODEL_OVERRIDE}"
+verifier  = "${VERIFIER_MODEL_OVERRIDE}"
 
 [codelens]
 max_search_files = "${MAX_SEARCH_FILES|-25}"

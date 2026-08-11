@@ -183,7 +183,7 @@ python -m prism_reviewer.cli --pr --repo /path/to/your/repo --base main
 
 ## 🔩7. Configuration Guide
 
-Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](prism_reviewer.toml). Placing a `prism_reviewer.toml` in your repository root is optional—if omitted, Prism Reviewer automatically falls back to built-in package defaults. Numeric parameters are dynamically cast, and environment variable overrides are supported using the `${VAR_NAME|-default_value}` format. You can define environment variables in a `.env` file (see `.env.example`) in your project root or pass them via shell environment variables.
+Prism Reviewer uses a centralized config system driven by [`src/prism_reviewer/prism_reviewer.toml`](src/prism_reviewer/prism_reviewer.toml). Placing a `prism_reviewer.toml` in your repository root is optional—if omitted, Prism Reviewer automatically loads built-in package defaults. Numeric parameters are dynamically cast, and environment variable overrides are supported using the `${VAR_NAME|-default_value}` format. You can define environment variables in a `.env` file (see `.env.example`) in your project root or pass them via shell environment variables.
 
 ### 7.1 Configuration Properties
 
@@ -196,7 +196,7 @@ Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](
 | Parameter | Default / Placeholder | Description |
 | --- | --- | --- |
 | `api_key` | `${LLM_PROVIDER_API_KEY}` | API credential key for the LiteLLM backend. |
-| `model` | `${LLM_MODEL_OVERRIDE}` | Target model identifier used for all agents (e.g., `openai/gpt-4o`, `anthropic/claude-3-5-sonnet`). |
+| `model` | `${LLM_MODEL}` | Target model identifier used for all agents (e.g., `openai/gpt-4o`, `anthropic/claude-3-5-sonnet`). |
 
 #### 7.1.3 Throttling and Resilience `[llm.thresholds]`
 | Parameter | Default / Placeholder | Description |
@@ -225,10 +225,10 @@ Prism Reviewer uses a centralized config system driven by [prism_reviewer.toml](
 #### 7.1.6 Per-Agent Model Overrides `[agents.models]`
 | Agent | Default / Placeholder | Description |
 | --- | --- | --- |
-| `warden` | `${WARDEN_MODEL_NAME}` | Model override for security agent. |
-| `architect` | `${ARCHITECT_MODEL_NAME}` | Model override for architectural agent. |
-| `inspector` | `${INSPECTOR_MODEL_NAME}` | Model override for inspector agent. |
-| `verifier` | `${VERIFIER_MODEL_NAME}` | Model override for verifier agent. |
+| `warden` | `${WARDEN_MODEL_OVERRIDE}` | Model override for security agent. |
+| `architect` | `${ARCHITECT_MODEL_OVERRIDE}` | Model override for architectural agent. |
+| `inspector` | `${INSPECTOR_MODEL_OVERRIDE}` | Model override for inspector agent. |
+| `verifier` | `${VERIFIER_MODEL_OVERRIDE}` | Model override for verifier agent. |
 
 #### 7.1.7 Code Lens Analysis `[codelens]`
 | Parameter | Default / Placeholder | Description |
@@ -251,7 +251,7 @@ my-repository/
 ├── .prism_reviewer/
 │   ├── context.md   # Project architecture, tech stack & domain background
 │   └── rules.md     # Custom coding rules, security requirements & constraints
-├── prism_reviewer.toml
+├── prism_reviewer.toml  # (Optional) Custom configuration overrides
 └── ...
 ```
 
