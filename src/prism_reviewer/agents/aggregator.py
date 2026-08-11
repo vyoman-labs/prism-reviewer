@@ -110,6 +110,29 @@ def aggregator_node(state: ReviewState) -> Dict[str, Any]:
 SUMMARY_COMMENT_MARKER: str = "<!-- prism-reviewer-summary -->"
 
 
+def _sanitize_table_cell(text: str) -> str:
+    """
+    Sanitizes a text string for safe inclusion inside a Markdown table cell.
+
+    - Replaces newlines (\\n, \\r\\n, \\r) and HTML break tags (<br>) with spaces.
+    - Escapes pipe characters ('|' -> '\\|') to prevent table cell boundary breakage.
+    - Collapses consecutive whitespace into a single space.
+    - Strips leading and trailing whitespace.
+    """
+    if not text:
+        return ""
+    import re
+
+    # Replace HTML line breaks and newlines with spaces
+    text = re.sub(r"<br\s*/?>", " ", text, flags=re.IGNORECASE)
+    text = text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    # Escape pipe characters so they don't split Markdown table cells
+    text = text.replace("|", "\\|")
+    # Collapse multiple whitespace characters into a single space
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
 def _render_markdown(
     pr_title: str,
     findings: List[Finding],
@@ -178,11 +201,13 @@ def _render_markdown(
             for f in tier_findings:
                 agent = f.get("agent", "unknown")
                 agent_badge = _AGENT_EMOJI.get(agent, "\U0001f916")  # 🤖 fallback
+                file_str = _sanitize_table_cell(str(f.get("file", "?")))
+                msg = _sanitize_table_cell(str(f.get("message", "?")))
                 lines.append(
                     f"| {agent_badge} {agent} "
-                    f"| `{f.get('file', '?')}` "
+                    f"| `{file_str}` "
                     f"| {f.get('line', '?')} "
-                    f"| {f.get('message', '?')} |"
+                    f"| {msg} |"
                 )
             lines.append("")
 
@@ -201,11 +226,13 @@ def _render_markdown(
         for f in resolved_findings:
             agent = f.get("agent", "unknown")
             agent_badge = _AGENT_EMOJI.get(agent, "\U0001f916")  # 🤖 fallback
+            file_str = _sanitize_table_cell(str(f.get("file", "?")))
+            msg = _sanitize_table_cell(str(f.get("message", "?")))
             lines.append(
                 f"| {agent_badge} {agent} "
-                f"| `{f.get('file', '?')}` "
+                f"| `{file_str}` "
                 f"| {f.get('line', '?')} "
-                f"| ~~{f.get('message', '?')}~~ |"
+                f"| ~~{msg}~~ |"
             )
         lines += ["", "</details>", ""]
 
