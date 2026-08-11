@@ -180,4 +180,47 @@ def test_github_app_token_environment_alias(toml_file):
         config.reset_for_testing(toml_file)
 
 
+def test_test_file_configs(tmp_path):
+    """Verifies that configured [test_files] entries are appended on top of defaults."""
+    toml_content = """
+    [test_files]
+    dirs = "e2e_tests, integration_tests"
+    prefixes = "check_, verify_"
+    suffixes = "_fixture, _e2e"
+    exact = "setup_tests.py, test_harness.js"
+    """
+    toml_file = tmp_path / "prism_reviewer.toml"
+    toml_file.write_text(toml_content, encoding="utf-8")
+
+    config.reset_for_testing(str(toml_file))
+    assert "tests" in Config.test_file_dirs()
+    assert "e2e_tests" in Config.test_file_dirs()
+    assert "integration_tests" in Config.test_file_dirs()
+
+    assert "test_" in Config.test_file_prefixes()
+    assert "check_" in Config.test_file_prefixes()
+    assert "verify_" in Config.test_file_prefixes()
+
+    assert "_test" in Config.test_file_suffixes()
+    assert "_fixture" in Config.test_file_suffixes()
+    assert "_e2e" in Config.test_file_suffixes()
+
+    assert "conftest.py" in Config.test_file_exact()
+    assert "setup_tests.py" in Config.test_file_exact()
+    assert "test_harness.js" in Config.test_file_exact()
+    config.reset_for_testing()
+
+
+
+def test_test_file_default_configs():
+    """Verifies default test file pattern lists on Config."""
+    config.reset_for_testing()
+    assert "tests" in Config.test_file_dirs()
+    assert "test_" in Config.test_file_prefixes()
+    assert "_test" in Config.test_file_suffixes()
+    assert "conftest.py" in Config.test_file_exact()
+
+
+
+
 

@@ -20,7 +20,7 @@ ever needed (currently it performs no LLM calls at all).
 from typing import Any, Dict, List
 
 from ..core.logger import get_logger
-from ..utils.git_utils import normalize_file_path, parse_diff_changed_lines
+from ..utils.git_utils import is_test_file, normalize_file_path, parse_diff_changed_lines
 from .nodes import NodeLogger
 from .state import Finding, ReviewState
 
@@ -36,6 +36,7 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
 
     1. Dropping findings whose ``(file, line)`` pair is not in the diff.
     2. Dropping findings whose ``signature`` matches a previous-run signature.
+    3. Normalizing severities on test files to ``ADVISORY``.
 
     Args:
         state: The current ``ReviewState`` dict.  Key fields consumed:
@@ -90,6 +91,7 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
     dropped_hallucination = 0
     dropped_duplicate = 0
     dropped_intra_duplicate = 0
+    test_file_coerced = 0
 
     for finding in raw_findings:
         file_path: str = normalize_file_path(finding.get("file", ""))
@@ -117,6 +119,12 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
             dropped_intra_duplicate += 1
             continue
 
+        # Rule: comments/findings on test files must always be ADVISORY
+        if is_test_file(file_path):
+            if finding.get("severity") != "ADVISORY":
+                test_file_coerced += 1
+                finding["severity"] = "ADVISORY"
+
         if signature:
             seen_current_signatures.add(signature)
         seen_location_keys.add(loc_key)
@@ -126,7 +134,10 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
     node_log.record(f"🧹 Dropped {dropped_hallucination}: line numbers not present in diff (hallucinations)")
     node_log.record(f"🔁 Dropped {dropped_duplicate}: duplicate signature match (idempotent)")
     node_log.record(f"👥 Dropped {dropped_intra_duplicate}: duplicate findings within current run")
+    if test_file_coerced > 0:
+        node_log.record(f"💡 Coerced {test_file_coerced} finding(s) on test files to ADVISORY severity")
     node_log.record(f"✅ Verified findings: {len(verified)}")
     node_log.flush()
 
     return {"verified_findings": verified}
+

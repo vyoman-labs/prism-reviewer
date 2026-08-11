@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-08-11
 
 ### Added
+- **Configurable Test File Markers**: Added `[test_files]` configuration block (`extra_dirs`, `extra_prefixes`, `extra_suffixes`, `extra_exact`) in `prism_reviewer.toml` and companion environment variables (`TEST_FILE_EXTRA_DIRS`, `TEST_FILE_EXTRA_PREFIXES`, `TEST_FILE_EXTRA_SUFFIXES`, `TEST_FILE_EXTRA_EXACT`), allowing teams to easily register custom test directories, prefixes, suffixes, or filenames.
+- **Enforced ADVISORY Severity for Test Files**: Added language-agnostic test file identification (`is_test_file`) across Python, JS/TS, Go, Java, Kotlin, C#, Ruby, Rust, C/C++, PHP, Swift, and shell scripts. Comments and findings on test files are now automatically normalized to `ADVISORY` severity across LLM parsing and pipeline verification.
 - **LLM Prompt Caching Structure**: Reordered prompt context sections in `_build_user_turn` to place static repository-wide shared context (Repo Structure, Codelens AST/Search/Dep Data, README, Context, Rules) at the top prefix, enabling 50%–90% prompt cache hit rates across parallel reviewer nodes and region evaluations.
 - **Expanded Codelens Search Cap**: Increased cross-reference search file cap from 5 to 25 files (`touched_files[:25]`), configurable via `max_search_files` under `[codelens]` in `prism_reviewer.toml` and environment variable `MAX_SEARCH_FILES`.
 - **Granular Prompt & Response Token Logging**: Added detailed token breakdown logging before and after LLM execution, recording AST Symbol Map, Code Search Hits, Dependency Scan, individual prompt categories (input tokens), and raw response completion (output & total tokens) separately.

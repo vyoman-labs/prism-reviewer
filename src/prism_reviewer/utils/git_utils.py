@@ -302,3 +302,67 @@ def group_diffs_into_regions(
         r["total_regions"] = total
         
     return regions
+
+
+def is_test_file(path: str) -> bool:
+    """
+    Determines if a given file path corresponds to a test file across multiple
+    programming languages (Python, JS/TS, Go, Java, Kotlin, C#, Ruby, Rust, C/C++, PHP, Swift, etc.).
+
+    Fetches classification patterns (dirs, prefixes, suffixes, exact matches)
+    directly from configuration (prism_reviewer.toml / environment variables).
+
+    Args:
+        path: Relative or absolute file path.
+
+    Returns:
+        True if the file is identified as a test file, False otherwise.
+    """
+    if not path:
+        return False
+
+    norm_path = normalize_file_path(path)
+    parts = norm_path.split("/")
+    filename = parts[-1]
+    if not filename:
+        return False
+
+    filename_lower = filename.lower()
+
+    # Load classification patterns directly from Config
+    from ..core.config import Config
+    test_dirs = set(d.lower().strip() for d in Config.test_file_dirs() if d.strip())
+    exact_test_files = set(f.lower().strip() for f in Config.test_file_exact() if f.strip())
+    prefixes = tuple(p.lower().strip() for p in Config.test_file_prefixes() if p.strip())
+    delim_suffixes = tuple(s.lower().strip() for s in Config.test_file_suffixes() if s.strip())
+
+    # 1. Directory checks
+    dir_parts = [p.lower() for p in parts[:-1]]
+    if any(p in test_dirs or p.endswith(".tests") or p.endswith(".test") for p in dir_parts):
+        return True
+
+    # 2. Exact filename matches (case-insensitive)
+    if filename_lower in exact_test_files:
+        return True
+
+    # 3. Filename prefix matches
+    if prefixes and filename_lower.startswith(prefixes):
+        return True
+
+    # 4. Filename suffix / segment matches before extension or double extension
+    stem, _ = os.path.splitext(filename)
+    stem_lower = stem.lower()
+
+    if delim_suffixes and stem_lower.endswith(delim_suffixes):
+        return True
+
+    # 5. PascalCase / CamelCase test endings (e.g., UserTest.java, PaymentTests.kt, OrderControllerTests.cs)
+    pascal_test_endings = ("Test", "Tests", "Spec", "Specs", "TestCase")
+    for ending in pascal_test_endings:
+        if stem.endswith(ending) and len(stem) > len(ending):
+            return True
+
+    return False
+
+
+

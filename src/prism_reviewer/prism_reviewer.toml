@@ -44,3 +44,14 @@ verifier  = "${VERIFIER_MODEL_OVERRIDE}"
 [codelens]
 max_search_files = "${MAX_SEARCH_FILES|-25}"
 
+[test_files]
+# Custom extra directories, filename prefixes, suffixes, and exact filenames to classify as test files.
+# Evaluated in addition to standard defaults (test, tests, test_*, *_test, etc.).
+dirs = "${TEST_FILE_DIRS}"
+prefixes = "${TEST_FILE_PREFIXES}"
+suffixes = "${TEST_FILE_SUFFIXES}"
+exact = "${TEST_FILE_EXACT}"
+
+
+
+

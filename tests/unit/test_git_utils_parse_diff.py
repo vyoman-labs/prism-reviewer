@@ -2,10 +2,78 @@
 
 import pytest
 
-from prism_reviewer.utils.git_utils import normalize_file_path, parse_diff_changed_lines
+from prism_reviewer.utils.git_utils import is_test_file, normalize_file_path, parse_diff_changed_lines
+
+
+class TestIsTestFile:
+    def test_empty_or_none_returns_false(self) -> None:
+        assert is_test_file("") is False
+
+    def test_directory_patterns(self) -> None:
+        assert is_test_file("tests/unit/test_foo.py") is True
+        assert is_test_file("test/foo.py") is True
+        assert is_test_file("__tests__/bar.js") is True
+        assert is_test_file("spec/models/user_spec.rb") is True
+        assert is_test_file("src/test/java/com/example/AppTest.java") is True
+        assert is_test_file("MyLib.Tests/OrderTests.cs") is True
+
+    def test_file_prefix_patterns(self) -> None:
+        assert is_test_file("src/test_utils.py") is True
+        assert is_test_file("src/spec_helper.rb") is True
+        assert is_test_file("src/test-utils.ts") is True
+
+    def test_file_suffix_and_segment_patterns(self) -> None:
+        assert is_test_file("src/foo_test.go") is True
+        assert is_test_file("src/components/Button.test.tsx") is True
+        assert is_test_file("src/components/Button.spec.jsx") is True
+        assert is_test_file("src/user_spec.rb") is True
+        assert is_test_file("src/math_unittest.cpp") is True
+
+    def test_pascal_case_patterns(self) -> None:
+        assert is_test_file("src/UserServiceTest.java") is True
+        assert is_test_file("src/PaymentTests.kt") is True
+        assert is_test_file("src/OrderControllerTests.cs") is True
+        assert is_test_file("src/AppTests.swift") is True
+
+    def test_exact_filename_matches(self) -> None:
+        assert is_test_file("conftest.py") is True
+        assert is_test_file("test.py") is True
+        assert is_test_file("spec.js") is True
+
+    def test_non_test_files_return_false(self) -> None:
+        assert is_test_file("src/prism_reviewer/utils/git_utils.py") is False
+        assert is_test_file("manifest.json") is False
+        assert is_test_file("contest.py") is False
+        assert is_test_file("attest.py") is False
+        assert is_test_file("latest.js") is False
+
+    def test_custom_configured_patterns(self, tmp_path) -> None:
+        """Custom patterns from config must be matched by is_test_file."""
+        from prism_reviewer.core.config import config
+        toml_content = """
+        [test_files]
+        dirs = "e2e"
+        prefixes = "check_"
+        suffixes = "_fixture"
+        exact = "custom_test.py"
+        """
+        toml_file = tmp_path / "prism_reviewer.toml"
+        toml_file.write_text(toml_content, encoding="utf-8")
+        config.reset_for_testing(str(toml_file))
+
+        try:
+            assert is_test_file("e2e/runner.py") is True
+            assert is_test_file("src/check_service.py") is True
+            assert is_test_file("src/user_fixture.py") is True
+            assert is_test_file("custom_test.py") is True
+        finally:
+            config.reset_for_testing()
+
+
 
 
 class TestNormalizeFilePath:
+
     def test_normalize_empty(self) -> None:
         assert normalize_file_path("") == ""
 

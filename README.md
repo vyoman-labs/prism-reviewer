@@ -236,8 +236,18 @@ Prism Reviewer uses a centralized config system driven by [`src/prism_reviewer/p
 | --- | --- | --- |
 | `max_search_files` | `${MAX_SEARCH_FILES\|-25}` | Maximum number of touched files analyzed in cross-reference search. |
 
+#### 7.1.8 Test File Classification `[test_files]`
+| Parameter | Default / Placeholder | Description |
+| --- | --- | --- |
+| `dirs` | `${TEST_FILE_DIRS\|-test,tests,__tests__,__specs__,spec,specs,testing}` | Comma-separated directory markers used to identify test files. |
+| `prefixes` | `${TEST_FILE_PREFIXES\|-test_,spec_,test-,spec-}` | Comma-separated filename prefixes used to identify test files. |
+| `suffixes` | `${TEST_FILE_SUFFIXES\|-_test,-test,.test,_tests,...}` | Comma-separated filename suffixes used to identify test files. |
+| `exact` | `${TEST_FILE_EXACT\|-conftest.py,test.py,tests.py,spec.py,...}` | Comma-separated exact filenames used to identify test files. |
+
+
 
 ---
+
 
 ### 7.2 Project Context & Custom Review Rules (`.prism_reviewer/`)
 

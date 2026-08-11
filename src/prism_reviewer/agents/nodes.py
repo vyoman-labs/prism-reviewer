@@ -43,6 +43,7 @@ from ..codelens.searcher import find_text
 from ..services.llm import ResilientLLMClient
 from ..utils.git_utils import (
     group_diffs_into_regions,
+    is_test_file,
     run_git_command,
     split_diff_by_file,
 )
@@ -345,8 +346,7 @@ def _parse_findings(
     node_log: NodeLogger,
 ) -> List[Finding]:
     """
-    Parses the LLM JSON response and stamps each finding with the agent name
-    and a content-hash signature.
+    Parses LLM JSON response and stamps each item with ``agent`` and ``signature``.
 
     Returns an empty list (with a warning recorded) on any parse error so the
     node always returns a valid state update even when the model misbehaves.
@@ -385,6 +385,8 @@ def _parse_findings(
 
         severity_raw = str(item.get("severity", "ADVISORY")).upper()
         severity: Any = severity_raw if severity_raw in ("CRITICAL", "MAJOR", "ADVISORY") else "ADVISORY"
+        if is_test_file(file_val):
+            severity = "ADVISORY"
 
         message: str = str(item.get("message", ""))
 
@@ -662,8 +664,11 @@ def warden_node(state: ReviewState) -> Dict[str, Any]:
     Warden agent node — security and compliance review.
 
     Runs in parallel with ``architect_node`` and ``inspector_node`` after
-    ``build_context_node`` completes.  Uses ``reasoning_effort=high`` by default
+    ``build_context_node`` completes. Uses ``reasoning_effort=high`` by default
     because security analysis benefits from deep chain-of-thought.
+
+    Excludes test files from review so Warden focuses exclusively on production
+    code. If all files in the diff are test files, Warden skips execution.
 
     Args:
         state: The current ``ReviewState`` dict.
@@ -671,12 +676,44 @@ def warden_node(state: ReviewState) -> Dict[str, Any]:
     Returns:
         Partial state update: ``{"raw_findings": [...]}``.
     """
+    logger = get_logger("prism_reviewer.agents.warden")
+    git_diff = state.get("git_diff", "")
+    file_diffs = split_diff_by_file(git_diff)
+    non_test_file_diffs = [fd for fd in file_diffs if not is_test_file(fd["file"])]
+
+    if file_diffs and not non_test_file_diffs:
+        node_log = NodeLogger(logger, "WARDEN Node")
+        node_log.record("⏩ Skipped Warden security review: all files in diff are test files.")
+        node_log.flush()
+        return {"raw_findings": []}
+
+    if len(non_test_file_diffs) < len(file_diffs):
+        max_lines = config.get("agents", {}).get("max_region_lines", 500)
+        try:
+            max_lines = int(max_lines)
+        except (ValueError, TypeError):
+            max_lines = 500
+
+        warden_diff = "".join(fd["diff"] for fd in non_test_file_diffs)
+        warden_regions = group_diffs_into_regions(non_test_file_diffs, max_lines)
+
+        warden_state: ReviewState = dict(state)  # type: ignore[assignment]
+        warden_state["git_diff"] = warden_diff
+        warden_state["regions"] = warden_regions
+        return _run_agent_node(
+            warden_state,
+            agent_name="warden",
+            system_prompt=WARDEN_SYSTEM_PROMPT,
+            logger_name="prism_reviewer.agents.warden",
+        )
+
     return _run_agent_node(
         state,
         agent_name="warden",
         system_prompt=WARDEN_SYSTEM_PROMPT,
         logger_name="prism_reviewer.agents.warden",
     )
+
 
 
 def architect_node(state: ReviewState) -> Dict[str, Any]:

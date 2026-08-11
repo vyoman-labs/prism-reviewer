@@ -161,16 +161,55 @@ class TestWardenNode:
             assert section in user_msg["content"], f"Missing section: {section}"
 
     def test_warden_passes_reasoning_effort_override(self) -> None:
-        """warden_node must forward the per-agent reasoning_effort to completion_with_retry."""
+        """warden_node must pass high reasoning_effort to completion_with_retry by default."""
         state = _make_state()
         with patch(
             "prism_reviewer.agents.nodes.ResilientLLMClient.completion_with_retry",
             return_value=_advisory_finding_json("warden"),
         ) as mock_call:
             _call_warden(state)
-        # reasoning_effort is passed as a keyword argument
         call_kwargs = mock_call.call_args[1]
-        assert "reasoning_effort" in call_kwargs
+        assert call_kwargs.get("reasoning_effort") == "high"
+
+    def test_warden_skips_when_diff_is_only_test_files(self) -> None:
+        """warden_node must return empty findings without calling LLM if diff contains only test files."""
+        test_only_diff = (
+            "diff --git a/tests/test_foo.py b/tests/test_foo.py\n"
+            "@@ -1,2 +1,3 @@\n"
+            " line_1\n"
+            "+added_line\n"
+            " line_3\n"
+        )
+        state = _make_state(git_diff=test_only_diff)
+        with patch("prism_reviewer.agents.nodes.ResilientLLMClient.completion_with_retry") as mock_call:
+            result = _call_warden(state)
+        mock_call.assert_not_called()
+        assert result["raw_findings"] == []
+
+    def test_warden_filters_out_test_files_in_mixed_diff(self) -> None:
+        """warden_node must exclude test files from the diff passed to the LLM."""
+        mixed_diff = (
+            "diff --git a/src/main.py b/src/main.py\n"
+            "@@ -1,2 +1,3 @@\n"
+            " line_1\n"
+            "+added_main\n"
+            " line_3\n"
+            "diff --git a/tests/test_main.py b/tests/test_main.py\n"
+            "@@ -1,2 +1,3 @@\n"
+            " test_line_1\n"
+            "+added_test\n"
+            " test_line_3\n"
+        )
+        state = _make_state(git_diff=mixed_diff)
+        with patch(
+            "prism_reviewer.agents.nodes.ResilientLLMClient.completion_with_retry",
+            return_value=_advisory_finding_json("warden"),
+        ) as mock_call:
+            _call_warden(state)
+        messages = mock_call.call_args[0][0]
+        user_turn_content = messages[1]["content"]
+        assert "src/main.py" in user_turn_content
+        assert "tests/test_main.py" not in user_turn_content
 
     def test_warden_graceful_on_empty_findings(self) -> None:
         """warden_node must return an empty list when the LLM returns no findings."""
@@ -335,4 +374,38 @@ class TestPromptCachingAndTokenLogging:
         """Verify build_context_node uses Config.codelens_max_search_files (25)."""
         from prism_reviewer.core.config import Config
         assert Config.codelens_max_search_files() == 25
+
+
+class TestParseFindings:
+    def test_parse_findings_forces_advisory_on_test_files(self) -> None:
+        """_parse_findings must override CRITICAL or MAJOR to ADVISORY for test files."""
+        from prism_reviewer.agents.nodes import NodeLogger, _parse_findings
+        mock_logger = MagicMock()
+        node_log = NodeLogger(mock_logger, "TEST Node")
+
+        raw_response = json.dumps({
+            "findings": [
+                {
+                    "file": "tests/test_service.py",
+                    "line": 10,
+                    "severity": "CRITICAL",
+                    "message": "Critical issue in test code",
+                },
+                {
+                    "file": "src/service.py",
+                    "line": 20,
+                    "severity": "CRITICAL",
+                    "message": "Critical issue in main code",
+                },
+            ]
+        })
+
+        findings = _parse_findings(raw_response, "warden", "/tmp/repo", node_log)
+        assert len(findings) == 2
+        test_finding = next(f for f in findings if f["file"] == "tests/test_service.py")
+        src_finding = next(f for f in findings if f["file"] == "src/service.py")
+
+        assert test_finding["severity"] == "ADVISORY"
+        assert src_finding["severity"] == "CRITICAL"
+
 

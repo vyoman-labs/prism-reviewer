@@ -340,7 +340,81 @@ class Config:
         except (ValueError, TypeError):
             return 25
 
+    DEFAULT_TEST_DIRS = ["test", "tests", "__tests__", "__specs__", "spec", "specs", "testing"]
+    DEFAULT_TEST_PREFIXES = ["test_", "spec_", "test-", "spec-"]
+    DEFAULT_TEST_SUFFIXES = [
+        "_test", "-test", ".test",
+        "_tests", "-tests", ".tests",
+        "_spec", "-spec", ".spec",
+        "_specs", "-specs", ".specs",
+        "_unittest", "-unittest", ".unittest",
+    ]
+    DEFAULT_TEST_EXACT = [
+        "conftest.py", "test.py", "tests.py", "spec.py", "specs.py",
+        "test.js", "test.ts", "spec.js", "spec.ts",
+    ]
+
+    @classmethod
+    def _parse_list_config(cls, val: Any) -> list[str]:
+        """Parses a string (comma-separated) or list into a list of non-empty strings."""
+        if isinstance(val, list):
+            return [str(v).strip() for v in val if str(v).strip()]
+        elif isinstance(val, str) and val.strip():
+            return [s.strip() for s in val.split(",") if s.strip()]
+        return []
+
+    @classmethod
+    def test_file_dirs(cls) -> list[str]:
+        """Returns directory markers used to classify test files (defaults merged with configured values)."""
+        test_block = config.get("test_files", {})
+        val = test_block.get("dirs") if isinstance(test_block, dict) else None
+        parsed = cls._parse_list_config(val) if val is not None else []
+        res = list(cls.DEFAULT_TEST_DIRS)
+        for item in parsed:
+            if item and item not in res:
+                res.append(item)
+        return res
+
+    @classmethod
+    def test_file_prefixes(cls) -> list[str]:
+        """Returns filename prefixes used to classify test files (defaults merged with configured values)."""
+        test_block = config.get("test_files", {})
+        val = test_block.get("prefixes") if isinstance(test_block, dict) else None
+        parsed = cls._parse_list_config(val) if val is not None else []
+        res = list(cls.DEFAULT_TEST_PREFIXES)
+        for item in parsed:
+            if item and item not in res:
+                res.append(item)
+        return res
+
+    @classmethod
+    def test_file_suffixes(cls) -> list[str]:
+        """Returns filename suffixes used to classify test files (defaults merged with configured values)."""
+        test_block = config.get("test_files", {})
+        val = test_block.get("suffixes") if isinstance(test_block, dict) else None
+        parsed = cls._parse_list_config(val) if val is not None else []
+        res = list(cls.DEFAULT_TEST_SUFFIXES)
+        for item in parsed:
+            if item and item not in res:
+                res.append(item)
+        return res
+
+    @classmethod
+    def test_file_exact(cls) -> list[str]:
+        """Returns exact filenames used to classify test files (defaults merged with configured values)."""
+        test_block = config.get("test_files", {})
+        val = test_block.get("exact") if isinstance(test_block, dict) else None
+        parsed = cls._parse_list_config(val) if val is not None else []
+        res = list(cls.DEFAULT_TEST_EXACT)
+        for item in parsed:
+            if item and item not in res:
+                res.append(item)
+        return res
+
+
 
 # --- Globally Exported Instance Variable ---
 config = GlobalConfig()
+
+
 

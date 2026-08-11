@@ -156,3 +156,26 @@ class TestVerifierNode:
         result = verifier_node(state)
         assert len(result["verified_findings"]) == 1
 
+    def test_test_file_severity_coerced_to_advisory(self) -> None:
+        """Findings on test files must always have their severity coerced to ADVISORY."""
+        diff = (
+            "diff --git a/tests/test_foo.py b/tests/test_foo.py\n"
+            "@@ -1,2 +1,3 @@\n"
+            " line_1\n"
+            "+added_line\n"
+            " line_3\n"
+        )
+        critical_test_finding = Finding(
+            file="tests/test_foo.py",
+            line=2,
+            severity="CRITICAL",
+            agent="warden",
+            message="Critical security issue in test",
+            signature="test-critical-sig",
+        )
+        state = _make_state(raw_findings=[critical_test_finding], git_diff=diff)
+        result = verifier_node(state)
+        assert len(result["verified_findings"]) == 1
+        assert result["verified_findings"][0]["severity"] == "ADVISORY"
+
+
