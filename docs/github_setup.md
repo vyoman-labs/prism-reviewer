@@ -26,14 +26,20 @@ To run Prism Reviewer as a bot user on pull requests, you should register a GitH
 
 ---
 
-## 2. Configuring Repository Secrets
+## 2. Configuring Repository Secrets & Variables
 
-To run the review agent in a GitHub Actions workflow, configure the following secrets under **Settings** > **Secrets and variables** > **Actions** > **Repository secrets**:
+To run the review agent in a GitHub Actions workflow, configure secrets and variables under **Settings** > **Secrets and variables** > **Actions**:
 
+### Repository Secrets (**Secrets** tab)
 | Secret Name | Description |
 | --- | --- |
 | `LLM_PROVIDER_API_KEY` | API Key for LiteLLM (e.g., OpenRouter, OpenAI, Anthropic, Gemini). |
 | `GITHUB_TOKEN` | Automatically supplied by GitHub Actions runner, or a custom Personal Access Token (PAT) / GitHub App installation token. |
+
+### Repository Variables (**Variables** tab)
+| Variable Name | Description |
+| --- | --- |
+| `LLM_MODEL` | *(Optional)* Target model identifier (e.g., `openai/gpt-4o`, `gemini/gemini-3.1-flash-lite`). Storing non-sensitive configuration under Repository Variables allows easy edits without secrecy constraints. |
 
 ---
 
@@ -76,7 +82,7 @@ jobs:
         env:
           # Credentials & Model Config
           LLM_PROVIDER_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }}
-          LLM_MODEL: "gemini/gemini-3.1-flash-lite" # or any model supported by LiteLLM
+          LLM_MODEL: ${{ vars.LLM_MODEL || secrets.LLM_MODEL || 'gemini/gemini-3.1-flash-lite' }}
           
           # Optional environment overrides for prism_reviewer.toml
           AGENTS_MODE: "parallel"
