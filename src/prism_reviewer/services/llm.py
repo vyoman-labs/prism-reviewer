@@ -1,3 +1,4 @@
+import sys
 import time
 from typing import Any, Dict, List
 
@@ -144,7 +145,9 @@ class ResilientLLMClient:
                     logger.error(
                         f"LiteLLM failed after {attempt} attempts for model={model_name}: {e}"
                     )
+                    sys.stdout.flush()
                     raise e
                 sleep_time = self.backoff_factor * (2 ** (attempt - 1))
                 logger.info(f"Sleeping for {sleep_time:.2f} seconds before retrying...")
+                sys.stdout.flush()
                 time.sleep(sleep_time)

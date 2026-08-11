@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Explicit GitHub Token Logging**: Added log messages in CLI, `scripts/post_review.py`, and GitHub Action workflows specifying whether a GitHub App token (`GITHUB_APP_TOKEN`) or default repository token (`GITHUB_TOKEN`) is being used for API operations.
 
 ### Fixed
+- **Unbuffered Rate Limit & Retry Warning Logging**: Added explicit `sys.stdout.flush()` call before sleeping on LLM rate-limit retries in `ResilientLLMClient` and set `PYTHONUNBUFFERED="1"` in `action.yml` step execution. This delivers instant, real-time warning logs to GitHub Actions console windows without breaking the non-interleaved log buffering of normal agent node outputs.
 - **Buffered Parallel Node Execution & Sequential Logging**: Restored full parallel agent fan-out across council nodes (`warden`, `architect`, `inspector`) and diff regions while buffering output blocks into state. Log blocks are flushed sequentially in rank order at the verifier node, combining maximum parallel execution speed with 100% linear, non-interleaved log outputs.
 - **Inline PR Review Comments Resolution & Persistence**: Added path normalization (`normalize_file_path`) across diff parsing, line validation, and GitHub API review posting to prevent relative file path mismatches.
 - **Findings Artifact Persistence**: Added automatic generation of `reports/prism_review_findings.json` artifact in `cli.py` and `run_local.py`, and updated `scripts/post_review.py` to read and forward findings to `publish_review_comment`.

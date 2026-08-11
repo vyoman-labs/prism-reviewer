@@ -82,6 +82,7 @@ runs:
     - name: Run AI Code Review Engine
       shell: bash
       env:
+        PYTHONUNBUFFERED: "1"
         LLM_PROVIDER_API_KEY: ${{ inputs.llm-api-key }}
         LLM_MODEL_OVERRIDE: ${{ inputs.llm-model-name }}
         GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
