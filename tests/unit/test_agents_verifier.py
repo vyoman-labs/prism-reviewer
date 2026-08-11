@@ -139,3 +139,20 @@ class TestVerifierNode:
         state = _make_state(raw_findings=[])
         result = verifier_node(state)
         assert "verified_findings" in result
+
+    def test_intra_run_duplicate_signatures_are_dropped(self) -> None:
+        """Duplicate findings with the same signature in raw_findings of a single run must be dropped."""
+        finding1 = _make_finding(file="foo.py", line=2, agent="warden", signature="shared-sig")
+        finding2 = _make_finding(file="foo.py", line=2, agent="inspector", signature="shared-sig")
+        state = _make_state(raw_findings=[finding1, finding2])
+        result = verifier_node(state)
+        assert len(result["verified_findings"]) == 1
+
+    def test_intra_run_duplicate_location_and_message_are_dropped(self) -> None:
+        """Duplicate findings on the same file, line, agent, and message within a single run must be dropped."""
+        finding1 = _make_finding(file="foo.py", line=2, agent="warden", signature="sig1")
+        finding2 = _make_finding(file="foo.py", line=2, agent="warden", signature="sig2")
+        state = _make_state(raw_findings=[finding1, finding2])
+        result = verifier_node(state)
+        assert len(result["verified_findings"]) == 1
+

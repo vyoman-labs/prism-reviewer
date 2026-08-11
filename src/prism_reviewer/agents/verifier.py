@@ -83,15 +83,20 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
 
     # Convert previous_signatures list to a set for O(1) lookup
     previous_sigs: set[str] = set(state.get("previous_signatures", []))
+    seen_current_signatures: set[str] = set()
+    seen_location_keys: set[tuple[str, int, str, str]] = set()
 
     verified: List[Finding] = []
     dropped_hallucination = 0
     dropped_duplicate = 0
+    dropped_intra_duplicate = 0
 
     for finding in raw_findings:
         file_path: str = normalize_file_path(finding.get("file", ""))
         line_num: int = finding.get("line", 0)
+        agent: str = str(finding.get("agent", "unknown"))
         signature: str = finding.get("signature", "")
+        message: str = str(finding.get("message", "")).strip().lower()
 
         # Guard 1: line must exist in the diff
         if (file_path, line_num) not in valid_lines:
@@ -106,10 +111,21 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
             dropped_duplicate += 1
             continue
 
+        # Guard 3: intra-run deduplication (duplicate signature or file+line+agent+message)
+        loc_key = (file_path, line_num, agent, message)
+        if (signature and signature in seen_current_signatures) or loc_key in seen_location_keys:
+            dropped_intra_duplicate += 1
+            continue
+
+        if signature:
+            seen_current_signatures.add(signature)
+        seen_location_keys.add(loc_key)
+
         verified.append(finding)
 
     node_log.record(f"🧹 Dropped {dropped_hallucination}: line numbers not present in diff (hallucinations)")
     node_log.record(f"🔁 Dropped {dropped_duplicate}: duplicate signature match (idempotent)")
+    node_log.record(f"👥 Dropped {dropped_intra_duplicate}: duplicate findings within current run")
     node_log.record(f"✅ Verified findings: {len(verified)}")
     node_log.flush()
 

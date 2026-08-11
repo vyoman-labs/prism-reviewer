@@ -287,6 +287,61 @@ def test_publish_review_comment_partial_inline_fallback(mock_github_class):
 
 
 @patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_deduplicates_in_memory_inline_comments(mock_github_class):
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+    mock_review = MagicMock()
+    mock_pr.create_review.return_value = mock_review
+    mock_pr.get_review_comments.return_value = []
+
+    findings = [
+        {"file": "src/main.py", "line": 10, "agent": "warden", "severity": "MAJOR", "message": "Duplicate check"},
+        {"file": "src/main.py", "line": 10, "agent": "warden", "severity": "MAJOR", "message": "Duplicate check"},
+    ]
+
+    bridge = GitHubAppBridge("fake-token")
+    bridge.publish_review_comment("owner/repo", 1, "### Review Summary", findings=findings)
+
+    mock_pr.create_review.assert_called_once()
+    _, kwargs = mock_pr.create_review.call_args
+    assert len(kwargs["comments"]) == 1
+
+
+@patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_skips_already_posted_comments(mock_github_class):
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+    mock_comment = MagicMock()
+    mock_pr.create_issue_comment.return_value = mock_comment
+
+    from prism_reviewer import __version__
+    existing_comment = MagicMock()
+    existing_comment.path = "src/main.py"
+    existing_comment.line = 10
+    existing_comment.body = f"👮 **Warden** (⚠️ MAJOR)\n\nAlready posted.\n\n---\n*Prism Reviewer AI v{__version__}*"
+    mock_pr.get_review_comments.return_value = [existing_comment]
+
+    findings = [
+        {"file": "src/main.py", "line": 10, "agent": "warden", "severity": "MAJOR", "message": "Already posted."}
+    ]
+
+    bridge = GitHubAppBridge("fake-token")
+    res = bridge.publish_review_comment("owner/repo", 1, "### Review Summary", findings=findings)
+
+    assert res == mock_comment
+    mock_pr.create_review.assert_not_called()
+    mock_pr.create_issue_comment.assert_called_once_with("### Review Summary")
+
+
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_request_title_success(mock_github_class):
     mock_github_instance = MagicMock()
     mock_github_class.return_value = mock_github_instance

@@ -160,6 +160,45 @@ class GitHubAppBridge:
                         "body": body,
                     })
 
+            # In-memory deduplication
+            unique_inline_comments: List[Dict[str, Any]] = []
+            seen_keys: set[tuple[str, int, str]] = set()
+            for c in inline_comments:
+                key = (c["path"], c["line"], c["body"].strip())
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    unique_inline_comments.append(c)
+            inline_comments = unique_inline_comments
+
+            # Fetch existing PR review comments to skip already published ones
+            if inline_comments:
+                try:
+                    from ..utils.git_utils import normalize_file_path
+                    existing_keys: set[tuple[str, int, str]] = set()
+                    existing_review_comments = pr.get_review_comments()
+                    for ec in existing_review_comments:
+                        ec_path = normalize_file_path(str(ec.path)) if getattr(ec, "path", None) else ""
+                        ec_line = getattr(ec, "line", None) or getattr(ec, "original_line", None) or 0
+                        ec_body = str(getattr(ec, "body", "")).strip()
+                        if ec_path and ec_line and ec_body:
+                            existing_keys.add((ec_path, int(ec_line), ec_body))
+
+                    if existing_keys:
+                        fresh_inline_comments: List[Dict[str, Any]] = []
+                        for c in inline_comments:
+                            k = (c["path"], c["line"], c["body"].strip())
+                            if k in existing_keys:
+                                logger.info(
+                                    f"Skipping inline comment at {c['path']}:{c['line']} - already published on PR."
+                                )
+                            else:
+                                fresh_inline_comments.append(c)
+                        inline_comments = fresh_inline_comments
+                except Exception as fetch_err:
+                    logger.warning(
+                        f"Could not fetch existing PR review comments for deduplication: {fetch_err}"
+                    )
+
             if inline_comments:
                 try:
                     review = pr.create_review(
