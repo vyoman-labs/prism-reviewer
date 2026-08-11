@@ -85,7 +85,8 @@ def build_graph():
     Assembles and compiles the PrismReviewer ``StateGraph``.
 
     Call this once at startup and reuse the compiled graph across review runs.
-    The compiled graph is thread-safe and can be invoked concurrently.
+    The compiled graph executes nodes sequentially to produce clean, deterministic,
+    non-interleaved logging output.
 
     Returns:
         A compiled LangGraph ``CompiledGraph`` instance ready for
@@ -104,7 +105,7 @@ def build_graph():
     # Linear entry: START → context builder
     builder.add_edge(START, "build_context")
 
-    # Fan-out: context builder → all three agents in parallel
+    # Parallel Fan-out: context builder → all three agents in parallel across regions
     builder.add_conditional_edges("build_context", _fan_out_router)
 
     # Fan-in: all three agents → verifier (LangGraph joins automatically)

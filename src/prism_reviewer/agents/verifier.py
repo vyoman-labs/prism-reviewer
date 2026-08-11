@@ -46,6 +46,21 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
     Returns:
         Partial state update: ``{"verified_findings": [...]}``.
     """
+    # Flush accumulated parallel node logs in strict rank and region order
+    agent_rank = {"warden": 1, "architect": 2, "inspector": 3}
+    raw_blocks: List[Dict[str, Any]] = state.get("node_log_blocks", [])
+    sorted_blocks = sorted(
+        raw_blocks,
+        key=lambda b: (
+            agent_rank.get(b.get("agent", ""), 4),
+            b.get("region_index", 1),
+        ),
+    )
+    for b in sorted_blocks:
+        block_text = b.get("block", "")
+        if block_text:
+            logger.info(block_text)
+
     node_log = NodeLogger(logger, "VERIFIER Node")
 
     raw_findings: List[Finding] = state.get("raw_findings", [])

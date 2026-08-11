@@ -133,6 +133,13 @@ class ReviewState(TypedDict):
     After all three agents complete, this contains the combined, unfiltered list.
     """
 
+    node_log_blocks: NotRequired[Annotated[List[Dict[str, Any]], operator.add]]
+    """
+    Buffered log blocks emitted by parallel agent nodes.  Uses ``operator.add``
+    as a LangGraph reducer so parallel branches safely append log blocks.
+    Flushed sequentially in rank order at the verifier node.
+    """
+
     # ── Post-verification ────────────────────────────────────────────────────
     verified_findings: List[Finding]
     """Findings that passed the hallucination guard and deduplication filter."""

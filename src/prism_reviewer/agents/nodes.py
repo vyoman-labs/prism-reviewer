@@ -98,19 +98,20 @@ class NodeLogger:
         elapsed = time.monotonic() - self._start
         self._lines.append(f"  +{elapsed:.2f}s  {message}")
 
+    def get_block(self) -> str:
+        """
+        Returns the entire formatted log block string with header and footer.
+        """
+        total_elapsed = time.monotonic() - self._start
+        header = f"\u2500\u2500 {self._label} \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+        footer = f"\u2500\u2500 Total: {total_elapsed:.2f}s {'\u2500' * 20}"
+        return "\n" + "\n".join([header] + self._lines + [footer])
+
     def flush(self) -> None:
         """
         Emits the entire buffered log as one atomic block to the real logger.
-
-        The footer line shows the total elapsed time for the node so it is
-        easy to spot the slowest agent in parallel execution output.
         """
-        total_elapsed = time.monotonic() - self._start
-        sep = "\u2500" * 52
-        header = f"\u2500\u2500 {self._label} \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-        footer = f"\u2500\u2500 Total: {total_elapsed:.2f}s {'\u2500' * 20}"
-        block = "\n".join([header] + self._lines + [footer])
-        self._logger.info("\n" + block)
+        self._logger.info(self.get_block())
 
 
 # ---------------------------------------------------------------------------
@@ -522,7 +523,9 @@ def _run_agent_node(
     Shared execution body for all three agent nodes.
 
     Reads per-agent reasoning effort from config, assembles messages, calls
-    the LLM, parses findings, and flushes the NodeLogger block.
+    the LLM, parses findings, and flushes the NodeLogger block. Handles
+    multi-region diff evaluation sequentially to ensure clean, non-interleaved
+    logging.
 
     Args:
         state:         The current ``ReviewState`` dict.
@@ -548,76 +551,101 @@ def _run_agent_node(
             f"No LLM model configured for agent '{agent_name}'. "
             "A model must be explicitly provided via LLM_MODEL_OVERRIDE or per-agent configuration."
         )
-    node_log.record(f"Dispatching: model={model_name}, reasoning_effort={effort}")
 
-    user_turn = _build_user_turn(state, agent_name)
-
-    # Calculate token breakdown per category for node logging
-    sys_tokens = _count_tokens(system_prompt, model_name)
-    ast_tokens = _count_tokens(_serialize_ast_map(state.get("ast_map", {})), model_name)
-    search_tokens = _count_tokens(state.get("codelens_search_hits") or "", model_name)
-    dep_tokens = _count_tokens(state.get("codelens_dep_summary") or "", model_name)
-    codelens_subtotal = ast_tokens + search_tokens + dep_tokens
-
-    repo_struct_tokens = _count_tokens(state.get("repo_structure") or "", model_name)
-    readme_tokens = _count_tokens(state.get("readme_content") or "", model_name)
-    context_tokens = _count_tokens(state.get("context_content") or "", model_name)
-    rules_tokens = _count_tokens(state.get("rules_content") or "", model_name)
-
-    pr_title_desc = f"Title: {state.get('pr_title') or ''}\nDescription:\n{state.get('pr_description') or ''}"
-    pr_meta_tokens = _count_tokens(pr_title_desc, model_name)
-    diff_tokens = _count_tokens(state.get("git_diff") or "", model_name)
-    schema_tokens = _count_tokens(OUTPUT_SCHEMA_BLOCK, model_name)
-
-    total_user_tokens = _count_tokens(user_turn, model_name)
-    total_prompt_tokens = sys_tokens + total_user_tokens
+    regions = state.get("regions", [])
+    if regions and not state.get("current_region"):
+        region_states: List[ReviewState] = []
+        full_ast_map = state.get("ast_map", {})
+        for region in regions:
+            r_state: ReviewState = dict(state)  # type: ignore[assignment]
+            r_state["git_diff"] = region["diff"]
+            r_state["current_region"] = region
+            r_state["ast_map"] = {
+                k: v for k, v in full_ast_map.items() if k in region["files"]
+            }
+            region_states.append(r_state)
+    else:
+        region_states = [state]
 
     node_log.record(
-        f"Prompt Token Breakdown (Total={total_prompt_tokens} tokens):\n"
-        f"    [Codelens Data Tokens ({codelens_subtotal} tokens)]\n"
-        f"      - AST Symbol Map:       {ast_tokens} tokens\n"
-        f"      - Code Search Hits:     {search_tokens} tokens\n"
-        f"      - Dependency Scan:      {dep_tokens} tokens\n"
-        f"    [Other Prompt Category Tokens]\n"
-        f"      - System Prompt:        {sys_tokens} tokens\n"
-        f"      - Repo Structure:       {repo_struct_tokens} tokens\n"
-        f"      - Repository README:    {readme_tokens} tokens\n"
-        f"      - Project Context:      {context_tokens} tokens\n"
-        f"      - Review Rules:         {rules_tokens} tokens\n"
-        f"      - PR Metadata:          {pr_meta_tokens} tokens\n"
-        f"      - Git Diff:             {diff_tokens} tokens\n"
-        f"      - Output Schema:        {schema_tokens} tokens"
+        f"Dispatching: model={model_name}, reasoning_effort={effort} ({len(region_states)} region(s))"
     )
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_turn},
-    ]
-
+    all_findings: List[Finding] = []
     client = ResilientLLMClient(config._data)
-    raw_response = client.completion_with_retry(messages, reasoning_effort=effort, model=model_name)
-    output_tokens = _count_tokens(raw_response, model_name)
-    total_tokens = total_prompt_tokens + output_tokens
 
-    node_log.record(
-        f"Response received: {len(raw_response)} chars | Tokens: Input={total_prompt_tokens}, Output={output_tokens}, Total={total_tokens}"
-    )
+    for idx, r_state in enumerate(region_states, 1):
+        user_turn = _build_user_turn(r_state, agent_name)
 
-    findings = _parse_findings(raw_response, agent_name, state["repo_path"], node_log)
+        sys_tokens = _count_tokens(system_prompt, model_name)
+        ast_tokens = _count_tokens(_serialize_ast_map(r_state.get("ast_map", {})), model_name)
+        search_tokens = _count_tokens(r_state.get("codelens_search_hits") or "", model_name)
+        dep_tokens = _count_tokens(r_state.get("codelens_dep_summary") or "", model_name)
+        codelens_subtotal = ast_tokens + search_tokens + dep_tokens
+
+        repo_struct_tokens = _count_tokens(r_state.get("repo_structure") or "", model_name)
+        readme_tokens = _count_tokens(r_state.get("readme_content") or "", model_name)
+        context_tokens = _count_tokens(r_state.get("context_content") or "", model_name)
+        rules_tokens = _count_tokens(r_state.get("rules_content") or "", model_name)
+
+        pr_title_desc = f"Title: {r_state.get('pr_title') or ''}\nDescription:\n{r_state.get('pr_description') or ''}"
+        pr_meta_tokens = _count_tokens(pr_title_desc, model_name)
+        diff_tokens = _count_tokens(r_state.get("git_diff") or "", model_name)
+        schema_tokens = _count_tokens(OUTPUT_SCHEMA_BLOCK, model_name)
+
+        total_user_tokens = _count_tokens(user_turn, model_name)
+        total_prompt_tokens = sys_tokens + total_user_tokens
+
+        node_log.record(
+            f"[Region {idx}/{len(region_states)}] Prompt Token Breakdown (Total={total_prompt_tokens} tokens):\n"
+            f"    [Codelens Data Tokens ({codelens_subtotal} tokens)]\n"
+            f"      - AST Symbol Map:       {ast_tokens} tokens\n"
+            f"      - Code Search Hits:     {search_tokens} tokens\n"
+            f"      - Dependency Scan:      {dep_tokens} tokens\n"
+            f"    [Other Prompt Category Tokens]\n"
+            f"      - System Prompt:        {sys_tokens} tokens\n"
+            f"      - Repo Structure:       {repo_struct_tokens} tokens\n"
+            f"      - Repository README:    {readme_tokens} tokens\n"
+            f"      - Project Context:      {context_tokens} tokens\n"
+            f"      - Review Rules:         {rules_tokens} tokens\n"
+            f"      - PR Metadata:          {pr_meta_tokens} tokens\n"
+            f"      - Git Diff:             {diff_tokens} tokens\n"
+            f"      - Output Schema:        {schema_tokens} tokens"
+        )
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_turn},
+        ]
+
+        raw_response = client.completion_with_retry(messages, reasoning_effort=effort, model=model_name)
+        output_tokens = _count_tokens(raw_response, model_name)
+        total_tokens = total_prompt_tokens + output_tokens
+
+        node_log.record(
+            f"[Region {idx}/{len(region_states)}] Response received: {len(raw_response)} chars | Tokens: Input={total_prompt_tokens}, Output={output_tokens}, Total={total_tokens}"
+        )
+
+        r_findings = _parse_findings(raw_response, agent_name, r_state["repo_path"], node_log)
+        all_findings.extend(r_findings)
 
     # Tally by severity for the log
     counts = {"CRITICAL": 0, "MAJOR": 0, "ADVISORY": 0}
-    for f in findings:
+    for f in all_findings:
         sev = f.get("severity", "ADVISORY")
         if sev in counts:
             counts[sev] += 1
     node_log.record(
-        f"Parsed {len(findings)} findings "
+        f"Parsed {len(all_findings)} total findings across {len(region_states)} region(s) "
         f"(CRITICAL={counts['CRITICAL']}, MAJOR={counts['MAJOR']}, ADVISORY={counts['ADVISORY']})"
     )
 
-    node_log.flush()
-    return {"raw_findings": findings}
+    r_idx = state.get("current_region", {}).get("region_index", 1)
+    block = node_log.get_block()
+    return {
+        "raw_findings": all_findings,
+        "node_log_blocks": [{"agent": agent_name, "region_index": r_idx, "block": block}],
+    }
 
 
 def warden_node(state: ReviewState) -> Dict[str, Any]:
