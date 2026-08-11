@@ -83,7 +83,7 @@ def test_missing_default_config_file_uses_builtin_defaults(tmp_path, monkeypatch
     """Verifies that missing prism_reviewer.toml falls back to built-in package defaults without error."""
     monkeypatch.chdir(tmp_path)
     config.reset_for_testing("prism_reviewer.toml")
-    assert config["llm"]["thresholds"]["retries"] == 5
+    assert config["llm"]["thresholds"]["retries"] == 4
     assert config["llm"]["thresholds"]["max_requests_per_minute"] == 60
     assert config["agents"]["mode"] == "parallel"
 

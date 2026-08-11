@@ -133,17 +133,23 @@ class ResilientLLMClient:
                 raise ValueError("Received empty or invalid response from LiteLLM")
             except Exception as e:
                 attempt += 1
+                err_str = str(e)
+                if "after None seconds" in err_str:
+                    err_str = err_str.replace(
+                        "after None seconds", f"after {self.request_timeout:.0f} seconds"
+                    )
                 if isinstance(e, non_retryable_exceptions):
                     logger.error(
-                        f"LiteLLM call failed with non-retryable error for model={model_name}: {e}"
+                        f"LiteLLM call failed with non-retryable error for model={model_name}: {err_str}"
                     )
+                    sys.stdout.flush()
                     raise e
                 logger.warning(
-                    f"LiteLLM call failed on attempt {attempt} with error: {e}"
+                    f"LiteLLM call failed on attempt {attempt} with error: {err_str}"
                 )
                 if attempt > self.max_retries:
                     logger.error(
-                        f"LiteLLM failed after {attempt} attempts for model={model_name}: {e}"
+                        f"LiteLLM failed after {attempt} attempts for model={model_name}: {err_str}"
                     )
                     sys.stdout.flush()
                     raise e

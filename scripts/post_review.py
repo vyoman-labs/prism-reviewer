@@ -92,6 +92,22 @@ def publish_report_to_pr() -> None:
     bridge.publish_review_comment(repo_name, pr_number, markdown_body, findings=findings)
     logger.info("Successfully published review comment to GitHub PR.")
 
+    # Only persist signatures for deduplication after comments are successfully published
+    if findings:
+        signatures_dir = os.path.join(os.getcwd(), ".prism_reviewer")
+        signatures_path = os.path.join(signatures_dir, "signatures.json")
+        os.makedirs(signatures_dir, exist_ok=True)
+        posted_sigs: list[str] = [
+            f["signature"] for f in findings if isinstance(f, dict) and f.get("signature")
+        ]
+        try:
+            with open(signatures_path, "w", encoding="utf-8") as f:
+                import json
+                json.dump(posted_sigs, f, indent=2)
+            logger.info(f"Persisted {len(posted_sigs)} posted finding signatures to {signatures_path}")
+        except Exception as e:
+            logger.warning(f"Failed to save posted signatures: {e}")
+
 
 def main() -> None:
     """

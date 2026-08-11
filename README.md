@@ -203,7 +203,7 @@ Prism Reviewer uses a centralized config system driven by [`src/prism_reviewer/p
 | --- | --- | --- |
 | `max_requests_per_minute` | `${MAX_REQUESTS_PER_MINUTE\|-60}` | API rate throttle limit per minute. |
 | `max_concurrent_requests` | `${MAX_CONCURRENT_REQUESTS\|-10}` | Max parallel connections allowed. |
-| `retries` | `${RETRIES\|-5}` | Number of backoff attempts on connection failures. |
+| `retries` | `${RETRIES\|-4}` | Number of backoff retries on connection failures (5 total attempts). |
 | `backoff_seconds` | `${BACKOFF_SECONDS\|-15}` | Exponential retry multiplier factor. |
 | `request_timeout` | `${LLM_REQUEST_TIMEOUT\|-120}` | Maximum seconds to wait for an LLM completion request before timing out. |
 

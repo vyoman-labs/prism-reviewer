@@ -370,14 +370,15 @@ def main(argv=None):
         report_markdown: str = final_state.get("report_markdown", "")
         verified_findings: list = final_state.get("verified_findings", [])
 
-        # Persist signatures from verified findings for next-run deduplication
-        new_signatures = [f["signature"] for f in verified_findings if f.get("signature")]
-        os.makedirs(signatures_dir, exist_ok=True)
-        try:
-            with open(signatures_path, "w", encoding="utf-8") as f:
-                json.dump(new_signatures, f, indent=2)
-        except Exception as e:
-            logger.warning(f"Failed to save current signatures: {e}")
+        # Persist signatures for standalone local runs (PR posting handles persistence after publishing)
+        if pr_id is None:
+            new_signatures = [f["signature"] for f in verified_findings if f.get("signature")]
+            os.makedirs(signatures_dir, exist_ok=True)
+            try:
+                with open(signatures_path, "w", encoding="utf-8") as f:
+                    json.dump(new_signatures, f, indent=2)
+            except Exception as e:
+                logger.warning(f"Failed to save current signatures: {e}")
 
         # Write the Markdown report to disk atomically inside reports/ directory
         reports_dir = os.path.join(repo_path, "reports")

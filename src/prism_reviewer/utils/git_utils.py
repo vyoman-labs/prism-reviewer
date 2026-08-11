@@ -48,7 +48,27 @@ def get_git_diff(repo_path: str, base: str = "HEAD") -> str:
         elif base == "unstaged":
             return run_git_command(repo_path, ["diff"])
         else:
-            return run_git_command(repo_path, ["diff", base])
+            try:
+                return run_git_command(repo_path, ["diff", base])
+            except Exception:
+                # If base reference is missing (e.g. shallow clone in CI), attempt to fetch it from remote
+                clean_base = base.replace("origin/", "")
+                logger.info(f"Base ref '{base}' not found locally. Fetching 'origin/{clean_base}' from remote...")
+                try:
+                    run_git_command(repo_path, ["fetch", "origin", clean_base, "--depth=50"])
+                    return run_git_command(repo_path, ["diff", base])
+                except Exception:
+                    # Fallback to origin/base or HEAD~1 if base branch still cannot be resolved
+                    if not base.startswith("origin/"):
+                        try:
+                            return run_git_command(repo_path, ["diff", f"origin/{base}"])
+                        except Exception:
+                            pass
+                    try:
+                        return run_git_command(repo_path, ["diff", "HEAD~1"])
+                    except Exception:
+                        pass
+                    raise
     except Exception as e:
         logger.warning(f"Failed to get git diff for base '{base}': {e}")
         return ""

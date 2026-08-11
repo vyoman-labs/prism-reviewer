@@ -93,8 +93,9 @@ runs:
         if [ -z "$BASE_TARGET" ]; then
           BASE_TARGET="main"
         fi
+        git fetch origin "$BASE_TARGET" --depth=50 || git fetch origin --depth=50 || true
         echo "Executing prism-review against base: origin/$BASE_TARGET"
-        prism-review --pr --base "origin/$BASE_TARGET" || prism-review --pr --base "$BASE_TARGET"
+        prism-review --pr --base "origin/$BASE_TARGET" || prism-review --pr --base "$BASE_TARGET" || prism-review --pr --base "HEAD~1"
 
     - name: Publish Review Comment
       shell: bash
