@@ -390,7 +390,17 @@ def main(argv=None):
             os.fsync(f.fileno())
         os.replace(temp_report_path, report_path)
 
+        # Write verified findings JSON artifact atomically
+        findings_path = os.path.join(reports_dir, "prism_review_findings.json")
+        temp_findings_path = f"{findings_path}.tmp"
+        with open(temp_findings_path, "w", encoding="utf-8") as f:
+            json.dump(verified_findings, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_findings_path, findings_path)
+
         logger.info(f"[cli] Review report generated at: {report_path}")
+        logger.info(f"[cli] Verified findings artifact generated at: {findings_path}")
         logger.info("[cli] Core process completed.")
     else:
         parser.print_help()

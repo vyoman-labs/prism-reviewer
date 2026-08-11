@@ -2,7 +2,22 @@
 
 import pytest
 
-from prism_reviewer.utils.git_utils import parse_diff_changed_lines
+from prism_reviewer.utils.git_utils import normalize_file_path, parse_diff_changed_lines
+
+
+class TestNormalizeFilePath:
+    def test_normalize_empty(self) -> None:
+        assert normalize_file_path("") == ""
+
+    def test_normalize_prefixes(self) -> None:
+        assert normalize_file_path("./src/main.py") == "src/main.py"
+        assert normalize_file_path("a/src/main.py") == "src/main.py"
+        assert normalize_file_path("b/src/main.py") == "src/main.py"
+        assert normalize_file_path("/src/main.py") == "src/main.py"
+
+    def test_normalize_windows_slashes(self) -> None:
+        assert normalize_file_path("src\\main.py") == "src/main.py"
+        assert normalize_file_path(".\\a\\src\\main.py") == "src/main.py"
 
 
 SINGLE_FILE_DIFF = (

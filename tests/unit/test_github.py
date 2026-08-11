@@ -233,6 +233,60 @@ def test_publish_review_comment_inline_fallback_to_issue_comment(mock_github_cla
 
 
 @patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_path_normalization(mock_github_class):
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+    mock_review = MagicMock()
+    mock_pr.create_review.return_value = mock_review
+
+    findings = [
+        {
+            "file": ".\\a\\src\\main.py",
+            "line": 10,
+            "agent": "warden",
+            "severity": "MAJOR",
+            "message": "Path formatting check.",
+        }
+    ]
+
+    bridge = GitHubAppBridge("fake-token")
+    bridge.publish_review_comment("owner/repo", 1, "### Review Summary", findings=findings)
+
+    _, kwargs = mock_pr.create_review.call_args
+    assert kwargs["comments"][0]["path"] == "src/main.py"
+
+
+@patch("prism_reviewer.services.github.Github")
+def test_publish_review_comment_partial_inline_fallback(mock_github_class):
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+
+    # Batch create_review fails, but single comment create_review succeeds
+    mock_pr.create_review.side_effect = [Exception("Batch line failure"), MagicMock()]
+    mock_comment = MagicMock()
+    mock_pr.create_issue_comment.return_value = mock_comment
+
+    findings = [
+        {"file": "src/main.py", "line": 10, "agent": "warden", "severity": "MAJOR", "message": "Valid line"}
+    ]
+
+    bridge = GitHubAppBridge("fake-token")
+    res = bridge.publish_review_comment("owner/repo", 1, "### Review Summary", findings=findings)
+
+    assert res == mock_comment
+    assert mock_pr.create_review.call_count == 2
+    mock_pr.create_issue_comment.assert_called_once_with("### Review Summary")
+
+
+@patch("prism_reviewer.services.github.Github")
 def test_fetch_pull_request_title_success(mock_github_class):
     mock_github_instance = MagicMock()
     mock_github_class.return_value = mock_github_instance
@@ -352,6 +406,6 @@ def test_post_review_script_with_github_app_token(tmp_path):
 
             mock_bridge_cls.assert_called_once_with("ghs_test_app_token")
             mock_bridge_inst.publish_review_comment.assert_called_once_with(
-                "test-owner/test-repo", 42, "## PR Review Report\n\nLooks good!"
+                "test-owner/test-repo", 42, "## PR Review Report\n\nLooks good!", findings=None
             )
 

@@ -124,6 +124,7 @@ class GitHubAppBridge:
             inline_comments: List[Dict[str, Any]] = []
             if findings:
                 from .. import __version__
+                from ..utils.git_utils import normalize_file_path
                 agent_emoji: Dict[str, str] = {
                     "warden": "👮",
                     "architect": "📐",
@@ -139,6 +140,7 @@ class GitHubAppBridge:
                     line_num = f.get("line")
                     if not file_path or not line_num:
                         continue
+                    norm_path = normalize_file_path(str(file_path))
                     agent = str(f.get("agent", "unknown"))
                     severity = str(f.get("severity", "ADVISORY"))
                     msg = str(f.get("message", ""))
@@ -153,7 +155,7 @@ class GitHubAppBridge:
                         f"*Prism Reviewer AI v{__version__}*"
                     )
                     inline_comments.append({
-                        "path": file_path,
+                        "path": norm_path,
                         "line": int(line_num),
                         "body": body,
                     })
@@ -170,8 +172,24 @@ class GitHubAppBridge:
                     return review
                 except Exception as inline_err:
                     logger.warning(
-                        f"Failed to publish PR review with inline comments: {inline_err}. Falling back to issue comment."
+                        f"Failed batch PR review with {len(inline_comments)} inline comments: {inline_err}. Attempting individual comment submission."
                     )
+                    valid_inline_comments: List[Dict[str, Any]] = []
+                    for c in inline_comments:
+                        try:
+                            pr.create_review(comments=cast(Any, [c]), event="COMMENT")
+                            valid_inline_comments.append(c)
+                        except Exception as single_err:
+                            logger.warning(
+                                f"Skipping invalid inline comment at {c.get('path')}:{c.get('line')}: {single_err}"
+                            )
+
+                    if valid_inline_comments:
+                        logger.info(
+                            f"Successfully published {len(valid_inline_comments)} of {len(inline_comments)} inline comments individually."
+                        )
+                        comment = pr.create_issue_comment(markdown_body)
+                        return comment
 
             comment = pr.create_issue_comment(markdown_body)
             logger.info(f"Successfully published comment ID {comment.id}")

@@ -20,7 +20,7 @@ ever needed (currently it performs no LLM calls at all).
 from typing import Any, Dict, List
 
 from ..core.logger import get_logger
-from ..utils.git_utils import parse_diff_changed_lines
+from ..utils.git_utils import normalize_file_path, parse_diff_changed_lines
 from .nodes import NodeLogger
 from .state import Finding, ReviewState
 
@@ -74,7 +74,7 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
     dropped_duplicate = 0
 
     for finding in raw_findings:
-        file_path: str = finding.get("file", "")
+        file_path: str = normalize_file_path(finding.get("file", ""))
         line_num: int = finding.get("line", 0)
         signature: str = finding.get("signature", "")
 
@@ -82,6 +82,9 @@ def verifier_node(state: ReviewState) -> Dict[str, Any]:
         if (file_path, line_num) not in valid_lines:
             dropped_hallucination += 1
             continue
+
+        # Update normalized path in finding object
+        finding["file"] = file_path
 
         # Guard 2: signature must not match a previous run
         if signature and signature in previous_sigs:

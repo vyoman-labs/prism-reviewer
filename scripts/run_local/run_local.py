@@ -246,8 +246,16 @@ def main():
         if primary_output != latest_output:
             _write_atomic_file(latest_output, report_markdown)
             logger.info(f"Updated latest review report copy at: {latest_output}")
+
+        # Save verified findings artifact
+        verified_findings = final_state.get("verified_findings", [])
+        import json
+        findings_json = json.dumps(verified_findings, indent=2)
+        findings_output = os.path.join(reports_dir, "prism_review_findings.json")
+        _write_atomic_file(findings_output, findings_json)
+        logger.info(f"Local PR verified findings saved to: {findings_output}")
     except Exception as e:
-        logger.error(f"Failed to write report to {primary_output}: {e}")
+        logger.error(f"Failed to write report or findings to {primary_output}: {e}")
         sys.exit(1)
 
 

@@ -102,6 +102,23 @@ def get_file_content_at_commit(repo_path: str, file_path: str, commit: str = "HE
         return ""
 
 
+def normalize_file_path(path: str) -> str:
+    """
+    Normalizes a file path for consistent matching across diffs and GitHub API calls.
+
+    Strips leading slashes, './', 'a/', or 'b/' prefixes, and replaces
+    windows backslashes '\\' with forward slashes '/'.
+    """
+    if not path:
+        return ""
+    p = path.strip().replace("\\", "/")
+    if p.startswith("./"):
+        p = p[2:]
+    if p.startswith("a/") or p.startswith("b/"):
+        p = p[2:]
+    return p.lstrip("/")
+
+
 def parse_diff_changed_lines(diff: str) -> set[tuple[str, int]]:
     """
     Parses a unified diff string and returns the set of (filename, line_number)
@@ -130,7 +147,7 @@ def parse_diff_changed_lines(diff: str) -> set[tuple[str, int]]:
         if raw_line.startswith("diff --git "):
             # Extract the b/ path which is the new file name
             parts = raw_line.split(" b/", 1)
-            current_file = parts[1].strip() if len(parts) == 2 else ""
+            current_file = normalize_file_path(parts[1]) if len(parts) == 2 else ""
             new_line = 0
 
         elif raw_line.startswith("@@ "):

@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Explicit GitHub Token Logging**: Added log messages in CLI, `scripts/post_review.py`, and GitHub Action workflows specifying whether a GitHub App token (`GITHUB_APP_TOKEN`) or default repository token (`GITHUB_TOKEN`) is being used for API operations.
 
 ### Fixed
+- **Inline PR Review Comments Resolution & Persistence**: Added path normalization (`normalize_file_path`) across diff parsing, line validation, and GitHub API review posting to prevent relative file path mismatches.
+- **Findings Artifact Persistence**: Added automatic generation of `reports/prism_review_findings.json` artifact in `cli.py` and `run_local.py`, and updated `scripts/post_review.py` to read and forward findings to `publish_review_comment`.
+- **Resilient GitHub Inline Comment Fallback**: Enhanced `GitHubAppBridge.publish_review_comment` to attempt individual inline comment posting when batch review creation fails, preserving valid inline comments rather than dropping them.
 - **`GITHUB_APP_TOKEN` Environment Alias & Resolution**: Updated `GlobalConfig._substitute_env`, `scripts/post_review.py`, and `cli._resolve_pr_api_details` to seamlessly resolve and fall back between `GITHUB_APP_TOKEN` and `GITHUB_TOKEN`.
 - **Package Prompt Files Inclusion**: Updated `pyproject.toml` setuptools package data to include `agents/prompts/*.md` persona prompt Markdown files in built package wheels, resolving runtime `FileNotFoundError` when `prism-reviewer` is executed after pip installation.
 

@@ -61,9 +61,35 @@ def publish_report_to_pr() -> None:
     else:
         logger.info("Using standard GitHub token (GITHUB_TOKEN) to publish review comment.")
 
+    findings_file_path: str | None = os.environ.get("REPORT_FINDINGS_FILE_PATH")
+    if not findings_file_path:
+        report_dir = os.path.dirname(report_file_path)
+        candidate1 = os.path.join(report_dir, "prism_review_findings.json") if report_dir else "prism_review_findings.json"
+        candidate2 = os.path.join("reports", "prism_review_findings.json")
+        if os.path.exists(candidate1):
+            findings_file_path = candidate1
+        elif os.path.exists(candidate2):
+            findings_file_path = candidate2
+        elif os.path.exists("prism_review_findings.json"):
+            findings_file_path = "prism_review_findings.json"
+
+    findings: list | None = None
+    if findings_file_path and os.path.exists(findings_file_path):
+        import json
+        try:
+            with open(findings_file_path, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+                if isinstance(loaded, list):
+                    findings = loaded
+                    logger.info(
+                        f"Loaded {len(findings)} findings for inline comments from: {findings_file_path}"
+                    )
+        except Exception as e:
+            logger.warning(f"Failed to read findings file at {findings_file_path}: {e}")
+
     logger.info(f"Connecting to GitHub PR #{pr_number} in repo '{repo_name}'...")
     bridge = GitHubAppBridge(token)
-    bridge.publish_review_comment(repo_name, pr_number, markdown_body)
+    bridge.publish_review_comment(repo_name, pr_number, markdown_body, findings=findings)
     logger.info("Successfully published review comment to GitHub PR.")
 
 
