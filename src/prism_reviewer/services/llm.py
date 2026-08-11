@@ -102,7 +102,7 @@ class ResilientLLMClient:
         attempt = 0
         while True:
             try:
-                logger.info(
+                logger.debug(
                     f"Sending completion request to model={model_name} "
                     f"(attempt {attempt + 1}/{self.max_retries + 1})"
                     + (f", reasoning_effort={effective_effort}" if effective_effort else "")
@@ -121,7 +121,7 @@ class ResilientLLMClient:
                 if choices:
                     content = choices[0].message.content
                     if content is not None:
-                        logger.info(
+                        logger.debug(
                             f"Received completion response from model={model_name} "
                             f"(attempt {attempt + 1}/{self.max_retries + 1}, response length={len(content)} chars)"
                         )

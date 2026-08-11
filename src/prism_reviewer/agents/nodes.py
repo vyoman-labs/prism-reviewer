@@ -549,10 +549,6 @@ def _run_agent_node(
             "A model must be explicitly provided via LLM_MODEL_OVERRIDE or per-agent configuration."
         )
     node_log.record(f"Dispatching: model={model_name}, reasoning_effort={effort}")
-    logger.info(
-        f"[{agent_name.upper()} Node] Dispatched to model={model_name} "
-        f"(reasoning_effort={effort}) — waiting for LLM response..."
-    )
 
     user_turn = _build_user_turn(state, agent_name)
 
@@ -600,10 +596,12 @@ def _run_agent_node(
 
     client = ResilientLLMClient(config._data)
     raw_response = client.completion_with_retry(messages, reasoning_effort=effort, model=model_name)
-    logger.info(
-        f"[{agent_name.upper()} Node] Received LLM response ({len(raw_response)} chars). Parsing findings..."
+    output_tokens = _count_tokens(raw_response, model_name)
+    total_tokens = total_prompt_tokens + output_tokens
+
+    node_log.record(
+        f"Response received: {len(raw_response)} chars | Tokens: Input={total_prompt_tokens}, Output={output_tokens}, Total={total_tokens}"
     )
-    node_log.record(f"Response received: {len(raw_response)} chars")
 
     findings = _parse_findings(raw_response, agent_name, state["repo_path"], node_log)
 
