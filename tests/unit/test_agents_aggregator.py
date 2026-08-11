@@ -185,5 +185,19 @@ class TestRenderMarkdown:
         assert _sanitize_table_cell("foo <br/> bar <br> baz") == "foo bar baz"
         assert _sanitize_table_cell("a | b | c") == "a \\| b \\| c"
 
+    def test_format_file_cell_inserts_wbr(self) -> None:
+        """_format_file_cell must insert <wbr> tags after slashes in file paths."""
+        from prism_reviewer.agents.aggregator import _format_file_cell
+        assert _format_file_cell("") == "?"
+        assert _format_file_cell("src/components/button.py") == "src/<wbr>components/<wbr>button.py"
+
+    def test_render_markdown_table_column_alignment(self) -> None:
+        """_render_markdown table headers must include explicit column alignment specifiers."""
+        f = _make_finding(severity="CRITICAL", file="src/main.py", line=10)
+        report = _render_markdown("PR", [f], {"CRITICAL": 1, "MAJOR": 0, "ADVISORY": 0})
+        assert "| :--- | :--- | :---: | :--- |" in report
+        assert "src/<wbr>main.py" in report
+
+
 
 

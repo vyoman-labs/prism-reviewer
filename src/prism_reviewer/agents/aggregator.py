@@ -133,6 +133,20 @@ def _sanitize_table_cell(text: str) -> str:
     return text.strip()
 
 
+def _format_file_cell(file_path: str) -> str:
+    """
+    Formats a file path for inclusion inside a Markdown table cell.
+
+    Inserts `<wbr>` (Word Break Opportunity) tags after every `/` path separator
+    so the browser table layout engine can wrap long file paths across
+    directory boundaries when horizontal space is constrained.
+    """
+    sanitized = _sanitize_table_cell(file_path)
+    if not sanitized:
+        return "?"
+    return sanitized.replace("/", "/<wbr>")
+
+
 def _render_markdown(
     pr_title: str,
     findings: List[Finding],
@@ -196,12 +210,12 @@ def _render_markdown(
                 f"## {emoji} {severity}",
                 "",
                 "| Agent | File | Line | Message |",
-                "| --- | --- | --- | --- |",
+                "| :--- | :--- | :---: | :--- |",
             ]
             for f in tier_findings:
                 agent = f.get("agent", "unknown")
                 agent_badge = _AGENT_EMOJI.get(agent, "\U0001f916")  # 🤖 fallback
-                file_str = _sanitize_table_cell(str(f.get("file", "?")))
+                file_str = _format_file_cell(str(f.get("file", "?")))
                 msg = _sanitize_table_cell(str(f.get("message", "?")))
                 lines.append(
                     f"| {agent_badge} {agent} "
@@ -221,12 +235,12 @@ def _render_markdown(
             "since been resolved (either fixed in code or manually resolved on GitHub).",
             "",
             "| Agent | File | Line | Message |",
-            "| --- | --- | --- | --- |",
+            "| :--- | :--- | :---: | :--- |",
         ]
         for f in resolved_findings:
             agent = f.get("agent", "unknown")
             agent_badge = _AGENT_EMOJI.get(agent, "\U0001f916")  # 🤖 fallback
-            file_str = _sanitize_table_cell(str(f.get("file", "?")))
+            file_str = _format_file_cell(str(f.get("file", "?")))
             msg = _sanitize_table_cell(str(f.get("message", "?")))
             lines.append(
                 f"| {agent_badge} {agent} "
