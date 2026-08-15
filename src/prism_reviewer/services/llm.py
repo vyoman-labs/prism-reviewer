@@ -12,6 +12,7 @@ from litellm.exceptions import (
 )
 from ..core.config import Config
 from ..core.logger import get_logger
+from ..monitoring import TokenUsageEvent, monitoring_manager
 
 # Configure LiteLLM to drop unsupported parameters when calling standard models
 litellm.drop_params = True
@@ -38,11 +39,15 @@ class ResilientLLMClient:
         self.backoff_factor = float(thresholds.get("backoff_seconds", 2.0))
         self.request_timeout = float(thresholds.get("request_timeout", 120.0))
 
+        # Configure token monitoring observers and LiteLLM callbacks
+        monitoring_manager.configure_from_config(config_dict)
+
     def completion_with_retry(
         self,
         messages: List[Dict[str, Any]],
         reasoning_effort: str | None = None,
         model: str | None = None,
+        caller_context: Dict[str, Any] | None = None,
     ) -> str:
         """
         Wraps litellm.completion with an exponential backoff retry loop.
@@ -69,6 +74,7 @@ class ResilientLLMClient:
                 (e.g. ``"high"``, ``"medium"``, ``"low"``).  Overrides the
                 global config value when provided.
             model: Optional model name to override the default global model configuration.
+            caller_context: Optional metadata dictionary describing the caller (e.g. agent role, step).
 
         Returns:
             The completion content as a string.
@@ -105,6 +111,7 @@ class ResilientLLMClient:
 
         attempt = 0
         while True:
+            start_time = time.perf_counter()
             try:
                 logger.debug(
                     f"Sending completion request to model={model_name} "
@@ -121,6 +128,7 @@ class ResilientLLMClient:
                     seed=1337,
                     **extra_kwargs,
                 )
+                duration_seconds = time.perf_counter() - start_time
                 choices = getattr(response, "choices", None)
                 if choices:
                     content = choices[0].message.content
@@ -129,6 +137,27 @@ class ResilientLLMClient:
                             f"Received completion response from model={model_name} "
                             f"(attempt {attempt + 1}/{self.max_retries + 1}, response length={len(content)} chars)"
                         )
+
+                        # Extract usage metrics and dispatch token monitoring event
+                        usage = getattr(response, "usage", None)
+                        if usage is not None:
+                            p_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+                            c_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+                            t_tokens = int(getattr(usage, "total_tokens", 0) or 0)
+                            if t_tokens == 0:
+                                t_tokens = p_tokens + c_tokens
+
+                            event = TokenUsageEvent(
+                                model=model_name,
+                                prompt_tokens=p_tokens,
+                                completion_tokens=c_tokens,
+                                total_tokens=t_tokens,
+                                duration_seconds=duration_seconds,
+                                reasoning_effort=effective_effort,
+                                caller_context=caller_context or {},
+                            )
+                            monitoring_manager.dispatch(event)
+
                         return content
                 raise ValueError("Received empty or invalid response from LiteLLM")
             except Exception as e:

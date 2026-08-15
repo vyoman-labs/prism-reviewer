@@ -252,6 +252,19 @@ Prism Reviewer uses a centralized config system driven by [`src/prism_reviewer/p
 | `suffixes` | `${TEST_FILE_SUFFIXES\|-_test,-test,.test,_tests,...}` | Comma-separated filename suffixes used to identify test files. |
 | `exact` | `${TEST_FILE_EXACT\|-conftest.py,test.py,tests.py,spec.py,...}` | Comma-separated exact filenames used to identify test files. |
 
+#### 7.1.9 LLM Token Monitoring & Observability `[monitoring]`
+| Parameter | Default / Placeholder | Description |
+| --- | --- | --- |
+| `enabled` | `${PRISM_MONITORING_ENABLED\|-true}` | Enables or disables LLM token usage tracking. |
+| `observers` | `${PRISM_MONITORING_OBSERVERS\|-console,jsonl}` | Comma-separated list of enabled native in-app observers (`console`, `jsonl`). |
+| `jsonl_file_path` | `${PRISM_MONITORING_JSONL_PATH\|-.prism_reviewer/token_usage.jsonl}` | Destination path for structured JSONL token usage audit logs. |
+| `litellm_callbacks` | `${PRISM_MONITORING_LITELLM_CALLBACKS\|-}` | Comma-separated LiteLLM callback integrations. Supports **`langfuse`** for LLM tracing & cost analytics, **`otel`** for OpenTelemetry APM tracing, `prometheus`, etc. |
+
+##### Observability Callbacks Setup (Langfuse & OpenTelemetry)
+- **Langfuse (Recommended for LLM Tracing)**: Set `PRISM_MONITORING_LITELLM_CALLBACKS="langfuse"` and configure standard Langfuse credentials (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`). Automatically tracks generation traces, prompt/completion text, token breakdowns, and model costs.
+- **OpenTelemetry (Enterprise APM)**: Set `PRISM_MONITORING_LITELLM_CALLBACKS="otel"` (or `PRISM_MONITORING_LITELLM_CALLBACKS="langfuse,otel"` to run both concurrently) to emit standard OpenTelemetry spans and metrics to your OTel Collector or APM backend (Datadog, Honeycomb, Grafana Tempo).
+
+
 
 
 ---

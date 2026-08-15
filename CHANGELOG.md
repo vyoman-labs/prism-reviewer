@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-08-15
+
+### Added
+- **Pluggable LLM Token Usage Monitoring & Observability Framework**: Added a native event-driven token monitoring system (`prism_reviewer.monitoring`) that records `prompt_tokens`, `completion_tokens`, `total_tokens`, wall-clock latency, and caller metadata across all LLM requests.
+- **Native In-App Observers**: Added built-in observers including `ConsoleLoggerObserver` (emits structured logs via `prism_reviewer.logger`), `JSONLFileObserver` (thread-safe append-only audit logger writing to `.prism_reviewer/token_usage.jsonl`), and `CustomCallbackObserver`.
+- **Langfuse & OpenTelemetry Integration**: Added support for LiteLLM callback hooks, allowing seamless zero-code integration with **Langfuse** (`litellm_callbacks = "langfuse"`) for LLM tracing & cost dashboards, and **OpenTelemetry** (`litellm_callbacks = "otel"`) for enterprise APM distributed tracing.
+- **`[monitoring]` Configuration Block**: Added `[monitoring]` section in `prism_reviewer.toml` and companion environment variables (`PRISM_MONITORING_ENABLED`, `PRISM_MONITORING_OBSERVERS`, `PRISM_MONITORING_JSONL_PATH`, `PRISM_MONITORING_LITELLM_CALLBACKS`).
+
 ## [1.0.0] - 2026-08-11
+
 
 ### Added
 - **Configurable Test File Markers**: Added `[test_files]` configuration block (`extra_dirs`, `extra_prefixes`, `extra_suffixes`, `extra_exact`) in `prism_reviewer.toml` and companion environment variables (`TEST_FILE_EXTRA_DIRS`, `TEST_FILE_EXTRA_PREFIXES`, `TEST_FILE_EXTRA_SUFFIXES`, `TEST_FILE_EXTRA_EXACT`), allowing teams to easily register custom test directories, prefixes, suffixes, or filenames.

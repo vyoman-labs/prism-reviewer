@@ -411,10 +411,33 @@ class Config:
                 res.append(item)
         return res
 
+    @classmethod
+    def monitoring_enabled(cls) -> bool:
+        """Returns True if LLM token usage monitoring is enabled."""
+        m = config.get("monitoring", {})
+        val = m.get("enabled", "true")
+        return str(val).lower() in ("true", "1", "yes")
+
+    @classmethod
+    def monitoring_observers(cls) -> list[str]:
+        """Returns enabled native monitoring observer names (e.g. ['console', 'jsonl'])."""
+        m = config.get("monitoring", {})
+        val = m.get("observers", "console,jsonl")
+        return cls._parse_list_config(val) if val else ["console", "jsonl"]
+
+    @classmethod
+    def monitoring_jsonl_path(cls) -> str:
+        """Returns target file path for JSONL token audit logs."""
+        m = config.get("monitoring", {})
+        return m.get("jsonl_file_path", ".prism_reviewer/token_usage.jsonl")
+
+    @classmethod
+    def monitoring_litellm_callbacks(cls) -> list[str]:
+        """Returns optional LiteLLM callbacks (e.g. ['langfuse', 'otel'])."""
+        m = config.get("monitoring", {})
+        val = m.get("litellm_callbacks", "")
+        return cls._parse_list_config(val)
 
 
 # --- Globally Exported Instance Variable ---
 config = GlobalConfig()
-
-
-

@@ -52,6 +52,17 @@ prefixes = "${TEST_FILE_PREFIXES}"
 suffixes = "${TEST_FILE_SUFFIXES}"
 exact = "${TEST_FILE_EXACT}"
 
+[monitoring]
+# Enable or disable LLM token usage monitoring (default: true).
+enabled = "${PRISM_MONITORING_ENABLED|-true}"
+# Comma-separated list of enabled native observers ("console", "jsonl").
+observers = "${PRISM_MONITORING_OBSERVERS|-console,jsonl}"
+# Path to the JSONL log file for token usage auditing.
+jsonl_file_path = "${PRISM_MONITORING_JSONL_PATH|-.prism_reviewer/token_usage.jsonl}"
+# Optional LiteLLM callbacks (e.g. "langfuse", "otel" for OpenTelemetry, "prometheus").
+litellm_callbacks = "${PRISM_MONITORING_LITELLM_CALLBACKS|-}"
+
+
 
 
 
