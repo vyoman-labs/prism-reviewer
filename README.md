@@ -437,9 +437,11 @@ If you prefer comments to be posted under a dedicated **GitHub App Bot Name** (e
 
 ### 9.4 GitHub App & Webhook Setup
 
-To configure a dedicated GitHub App registration or webhooks for the Prism Reviewer Dashboard, see the detailed documentation:
+To configure a dedicated GitHub App registration, webhooks, or LLM observability monitoring for Prism Reviewer, see the detailed documentation:
+- [LLM Observability & Token Usage Monitoring Guide](docs/observability_setup.md)
 - [GitHub App Setup Guide](docs/github_app_setup.md)
 - [GitHub Integration Overview](docs/github_setup.md)
+
 
 
 ---
