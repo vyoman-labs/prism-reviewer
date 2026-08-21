@@ -42,9 +42,27 @@ Langfuse is a purpose-built LLM observability platform that tracks generation tr
 2. **Create Project**: Create a new project (e.g. `prism-reviewer`).
 3. **Generate API Keys**: Navigate to **Project Settings** -> **API Keys** and copy your `Public Key` and `Secret Key`.
 4. **Install Python Package**:
-   ```bash
-   pip install langfuse
-   ```
+   *Note: `langfuse` is an optional runtime dependency and is not included by default in `prism-reviewer` to keep the core package lightweight.*
+   - **Local CLI / Virtual Environment**:
+     ```bash
+     pip install langfuse
+     ```
+   - **GitHub Actions Workflows**:
+     Add an explicit `pip install langfuse` step prior to executing the action:
+     ```yaml
+     - name: Install Telemetry Dependencies
+       run: pip install langfuse
+
+     - name: Run Prism Reviewer
+       uses: vyoman-labs/prism-reviewer@v1
+       with:
+         llm-api-key: ${{ secrets.LLM_PROVIDER_API_KEY }}
+       env:
+         PRISM_MONITORING_LITELLM_CALLBACKS: "langfuse"
+         LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+         LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+         LANGFUSE_HOST: "https://cloud.langfuse.com"
+     ```
 5. **Configure Environment Variables**: Add keys to `.env` or export them:
    ```env
    LANGFUSE_PUBLIC_KEY="pk-lf-..."
