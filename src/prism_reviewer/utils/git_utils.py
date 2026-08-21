@@ -74,6 +74,29 @@ def get_git_diff(repo_path: str, base: str = "HEAD") -> str:
         return ""
 
 
+def get_current_head_sha(repo_path: str) -> str:
+    """
+    Returns the full SHA-1 commit hash of current HEAD in repo_path.
+    """
+    try:
+        return run_git_command(repo_path, ["rev-parse", "HEAD"]).strip()
+    except Exception as e:
+        logger.warning(f"Failed to get HEAD commit SHA: {e}")
+        return ""
+
+
+def get_changed_files_list(repo_path: str, base: str = "HEAD") -> List[str]:
+    """
+    Returns a list of normalized file paths modified in the git diff comparing base to HEAD.
+    """
+    diff_content = get_git_diff(repo_path, base)
+    if not diff_content:
+        return []
+    files_diffs = split_diff_by_file(diff_content)
+    return [normalize_file_path(fd["file"]) for fd in files_diffs if fd.get("file")]
+
+
+
 def get_repo_structure(repo_path: str) -> Dict[str, Any]:
     """
     Returns a nested directory tree representation of files tracked by git.

@@ -5,13 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2026-08-15
+## [1.1.0] - 2026-08-21
+
 
 ### Added
 - **Pluggable LLM Token Usage Monitoring & Observability Framework**: Added a native event-driven token monitoring system (`prism_reviewer.monitoring`) that records `prompt_tokens`, `completion_tokens`, `total_tokens`, wall-clock latency, and caller metadata across all LLM requests.
 - **Native In-App Observers**: Added built-in observers including `ConsoleLoggerObserver` (emits structured logs via `prism_reviewer.logger`), `JSONLFileObserver` (thread-safe append-only audit logger writing to `.prism_reviewer/token_usage.jsonl`), and `CustomCallbackObserver`.
 - **Langfuse & OpenTelemetry Integration**: Added support for LiteLLM callback hooks, allowing seamless zero-code integration with **Langfuse** (`litellm_callbacks = "langfuse"`) for LLM tracing & cost dashboards, and **OpenTelemetry** (`litellm_callbacks = "otel"`) for enterprise APM distributed tracing.
 - **`[monitoring]` Configuration Block**: Added `[monitoring]` section in `prism_reviewer.toml` and companion environment variables (`PRISM_MONITORING_ENABLED`, `PRISM_MONITORING_OBSERVERS`, `PRISM_MONITORING_JSONL_PATH`, `PRISM_MONITORING_LITELLM_CALLBACKS`).
+- **Incremental PR Diff Review Mode**: Introduced a smart incremental review mode (`diff_mode = "auto"`) that analyzes only the newly pushed commit range (`previous_sha..HEAD`) on PR updates, cutting LLM token usage and API costs by up to 90% while maintaining PR-wide architectural awareness via full CodeLens AST context.
+- **`[git]` Configuration Block**: Added `[git]` config section in `prism_reviewer.toml` and companion `PRISM_DIFF_MODE` environment variable supporting `auto`, `full`, and `incremental` modes.
+- **CLI Diff Parameters**: Added `--diff-mode` and `--compare-range` options to the `prism-review` CLI.
+- **Persistent State Tracking**: Added `.prism_reviewer/state.json` persistence to track `last_reviewed_commit_sha` and deduplication signatures across runs.
 
 ## [1.0.0] - 2026-08-11
 

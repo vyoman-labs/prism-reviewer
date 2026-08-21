@@ -9,6 +9,13 @@ token = "${GITHUB_TOKEN}"
 # "append": post a new summary comment on every push (legacy behaviour).
 summary_mode = "${PRISM_SUMMARY_MODE|-update}"
 
+[git]
+# "auto" (default): use incremental diff (previous SHA to HEAD) on PR updates if previous state exists, full diff otherwise.
+# "full": always compare base branch to HEAD.
+# "incremental": always compare previous reviewed SHA / commit to HEAD.
+diff_mode = "${PRISM_DIFF_MODE|-auto}"
+
+
 [llm.thresholds]
 max_requests_per_minute = "${MAX_REQUESTS_PER_MINUTE|-60}"
 max_concurrent_requests = "${MAX_CONCURRENT_REQUESTS|-10}"

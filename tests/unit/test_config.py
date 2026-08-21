@@ -221,6 +221,23 @@ def test_test_file_default_configs():
     assert "conftest.py" in Config.test_file_exact()
 
 
+def test_diff_mode_config(tmp_path):
+    """Verifies that [git] diff_mode is loaded and defaults to 'auto'."""
+    config.reset_for_testing()
+    assert Config.diff_mode() == "auto"
+
+    toml_content = """
+    [git]
+    diff_mode = "incremental"
+    """
+    toml_file = tmp_path / "prism_reviewer.toml"
+    toml_file.write_text(toml_content, encoding="utf-8")
+    config.reset_for_testing(str(toml_file))
+    assert Config.diff_mode() == "incremental"
+    config.reset_for_testing()
+
+
+
 
 
 

@@ -75,7 +75,32 @@ Large code deltas exceed single-turn LLM context limits or result in degraded re
 ### 3.3 Buffered Atomic Logging
 Standard terminal log writers interleave messages when multiple threads execute in parallel. To preserve clean CLI logs, Prism Reviewer implements `NodeLogger` (defined in [nodes.py](src/prism_reviewer/agents/nodes.py)). This class buffers per-agent log entries in memory and flushes them as a single atomic log block on node completion.
 
+### 3.4 Smart Hybrid Incremental Review Strategy
+Running full PR reviews on every push update can consume significant LLM API tokens. Prism Reviewer implements a **Smart Hybrid Review Strategy** to cut LLM token costs by up to 90% on PR updates while preserving PR-wide architectural context and avoiding review quality degradation:
+
+```mermaid
+flowchart TD
+    A["PR Event Triggered"] --> B{"Event Type / Diff Mode"}
+    B -- "Initial PR / Full Sync / Manual" --> C["Full PR Review Mode"]
+    B -- "Push Update / Incremental" --> D["Smart Incremental Review Mode"]
+
+    C --> E["Diff: base_branch..HEAD"]
+    C --> F["Full PR Context + Full LLM Scan"]
+    
+    D --> G["Diff: previous_commit..HEAD"]
+    D --> H["Pass Full PR Touched Files + CodeLens AST Map"]
+    D --> I["LLM Evaluates New Diff with PR Context"]
+
+    E --> J["Verifier Node & Signatures"]
+    G --> J
+    J --> K["Update PR Summary & Inline Comments"]
+```
+
+- **Full PR Review Mode (`full`)**: Used on initial PR creation (`pull_request.opened`), milestone reviews, or manual trigger (`/prism full-review`). Compares `base_branch..HEAD`.
+- **Smart Incremental Mode (`incremental` / `auto`)**: Used on push updates (`pull_request.synchronize`). Evaluates only the newly modified commits (`previous_sha..HEAD`), while maintaining full PR awareness by injecting the complete PR touched file list and CodeLens AST dependency map into the prompt context.
+
 ---
+
 
 ## 🔧4. Installation
 
@@ -186,6 +211,9 @@ python -m prism_reviewer.cli --pr --repo /path/to/your/repo --base main
 | `--methods` | Path | Extracts AST symbols (classes, functions, methods) from the target file. |
 | `--context` | Path | Optional. Path to custom project context markdown file (defaults to `.prism_reviewer/context.md`). |
 | `--rules` | Path | Optional. Path to custom repository review rules markdown file (defaults to `.prism_reviewer/rules.md`). |
+| `--diff-mode` | String | Optional. Git diff strategy for review: `auto` (default), `full`, or `incremental`. |
+| `--compare-range` | String | Optional. Explicit commit range or base for comparison (e.g. `SHA1..SHA2` or `origin/main`). |
+
 
 ---
 
@@ -264,10 +292,13 @@ Prism Reviewer uses a centralized config system driven by [`src/prism_reviewer/p
 - **Langfuse (Recommended for LLM Tracing)**: Set `PRISM_MONITORING_LITELLM_CALLBACKS="langfuse"` and configure standard Langfuse credentials (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`). Automatically tracks generation traces, prompt/completion text, token breakdowns, and model costs.
 - **OpenTelemetry (Enterprise APM)**: Set `PRISM_MONITORING_LITELLM_CALLBACKS="otel"` (or `PRISM_MONITORING_LITELLM_CALLBACKS="langfuse,otel"` to run both concurrently) to emit standard OpenTelemetry spans and metrics to your OTel Collector or APM backend (Datadog, Honeycomb, Grafana Tempo).
 
-
-
+#### 7.1.10 Git Diff & Incremental Review Configuration `[git]`
+| Parameter | Default / Placeholder | Description |
+| --- | --- | --- |
+| `diff_mode` | `${PRISM_DIFF_MODE\|-auto}` | Controls the PR git diff comparison strategy. `"auto"` (default) uses incremental diff (`previous_commit..HEAD`) on push updates if previous state exists, and full diff otherwise. `"full"` forces complete diff review (`base..HEAD`). `"incremental"` forces incremental diff review. |
 
 ---
+
 
 
 ### 7.2 Project Context & Custom Review Rules (`.prism_reviewer/`)

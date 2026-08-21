@@ -11,7 +11,13 @@ from .core.config import Config, config
 from .core.logger import get_logger
 from .codelens.dependency_scanner import scan_dependencies
 from .codelens.searcher import find_text, get_full_file, get_related_files, get_file_methods
-from .utils.git_utils import get_git_diff, get_repo_structure
+from .utils.git_utils import (
+    get_changed_files_list,
+    get_current_head_sha,
+    get_git_diff,
+    get_repo_structure,
+)
+
 from .utils.signature import get_finding_signature
 
 
@@ -103,7 +109,73 @@ def _resolve_pr_api_details(repo_path: str, logger: Any) -> tuple[str, str, int 
         return "", "", pr_number
 
 
+def _resolve_git_diff_mode_and_content(
+    repo_path: str,
+    args: Any,
+    logger: Any,
+) -> tuple[str, bool, str, list[str], str]:
+    """
+    Resolves git diff content, incremental status, configured diff mode, full PR files list,
+    and current HEAD commit SHA based on configuration and CLI parameters.
+
+    Returns:
+        (diff_content, is_incremental, configured_mode, full_pr_files, current_head_sha)
+    """
+    mode = (getattr(args, "diff_mode", None) or Config.diff_mode()).lower()
+    if mode not in ("auto", "full", "incremental"):
+        mode = "auto"
+
+    diff_base = getattr(args, "compare_range", None) or getattr(args, "base", None) or "unstaged"
+    current_head = get_current_head_sha(repo_path)
+
+    # Load persistent state if available
+    signatures_dir = os.path.join(repo_path, ".prism_reviewer")
+    state_path = os.path.join(signatures_dir, "state.json")
+    last_reviewed_sha = ""
+    if os.path.exists(state_path):
+        try:
+            with open(state_path, "r", encoding="utf-8") as f:
+                saved_state = json.load(f)
+                if isinstance(saved_state, dict):
+                    last_reviewed_sha = str(saved_state.get("last_reviewed_commit_sha", ""))
+        except Exception as exc:
+            logger.debug(f"Failed to read state.json: {exc}")
+
+    # Check GitHub Actions event for previous commit SHA if not in local state
+    if not last_reviewed_sha:
+        event_path = os.environ.get("GITHUB_EVENT_PATH")
+        if event_path and os.path.exists(event_path):
+            try:
+                with open(event_path, "r", encoding="utf-8") as f:
+                    event_data = json.load(f)
+                    if isinstance(event_data, dict):
+                        last_reviewed_sha = str(event_data.get("before", ""))
+            except Exception as exc:
+                logger.debug(f"Failed to extract 'before' commit from GITHUB_EVENT_PATH: {exc}")
+
+    full_pr_files = get_changed_files_list(repo_path, diff_base) if diff_base != "unstaged" else []
+
+    if mode in ("auto", "incremental"):
+        prev_sha = last_reviewed_sha
+        if prev_sha and current_head and prev_sha != current_head:
+            logger.info(f"[cli] Attempting incremental review diff from {prev_sha[:7]}..{current_head[:7]}")
+            inc_diff = get_git_diff(repo_path, f"{prev_sha}..{current_head}")
+            if inc_diff.strip():
+                logger.info(f"[cli] Using incremental diff ({len(inc_diff.splitlines())} lines)")
+                return inc_diff, True, mode, full_pr_files, current_head
+            else:
+                logger.info("[cli] Incremental diff was empty; falling back to full diff.")
+
+        if mode == "incremental" and not last_reviewed_sha:
+            logger.warning("[cli] Incremental diff requested but no previous commit SHA found. Falling back to full diff.")
+
+    logger.info(f"[cli] Using full diff mode with base '{diff_base}'")
+    full_diff = get_git_diff(repo_path, diff_base)
+    return full_diff, False, mode, full_pr_files, current_head
+
+
 def main(argv=None):
+
     parser = argparse.ArgumentParser(
         prog="prism-review",
         description="PrismReviewer command-line interface"
@@ -179,6 +251,20 @@ def main(argv=None):
         required=False,
         help="Path to optional rules markdown file"
     )
+    parser.add_argument(
+        "--diff-mode",
+        type=str,
+        choices=["auto", "full", "incremental"],
+        required=False,
+        help="Git diff strategy for review ('auto', 'full', or 'incremental'). Defaults to config."
+    )
+    parser.add_argument(
+        "--compare-range",
+        type=str,
+        required=False,
+        help="Explicit commit range or base for comparison (e.g. SHA1..SHA2 or origin/main)"
+    )
+
 
     args = parser.parse_args(argv)
 
@@ -306,20 +392,31 @@ def main(argv=None):
             with open(rules_path, "r", encoding="utf-8") as f:
                 rules_content = f.read()
 
-        # Load previous signatures for idempotent deduplication
+        # Load previous state and signatures for idempotent deduplication and incremental diffs
         signatures_dir = os.path.join(repo_path, ".prism_reviewer")
         signatures_path = os.path.join(signatures_dir, "signatures.json")
+        state_path = os.path.join(signatures_dir, "state.json")
         previous_signatures: list[str] = []
-        if os.path.exists(signatures_path):
+        if os.path.exists(state_path):
+            try:
+                with open(state_path, "r", encoding="utf-8") as f:
+                    saved_state = json.load(f)
+                    if isinstance(saved_state, dict) and "signatures" in saved_state:
+                        previous_signatures = saved_state["signatures"]
+            except Exception as e:
+                logger.warning(f"Failed to load previous state.json: {e}")
+
+        if not previous_signatures and os.path.exists(signatures_path):
             try:
                 with open(signatures_path, "r", encoding="utf-8") as f:
                     previous_signatures = json.load(f)
             except Exception as e:
                 logger.warning(f"Failed to load previous signatures: {e}")
 
-        # Get git diff
-        diff_base = args.base or "unstaged"
-        diff_content = get_git_diff(repo_path, diff_base)
+        # Resolve git diff content and incremental mode
+        diff_content, is_incremental, diff_mode_used, full_pr_files, current_head_sha = _resolve_git_diff_mode_and_content(
+            repo_path, args, logger
+        )
 
         # Always attempt to fetch PR title, description, and ID from GitHub API
         pr_title, pr_description, pr_id = _resolve_pr_api_details(repo_path, logger)
@@ -342,6 +439,9 @@ def main(argv=None):
             "verified_findings": [],
             "report_markdown": "",
             "regions": [],
+            "diff_mode": diff_mode_used,
+            "is_incremental": is_incremental,
+            "full_pr_files": full_pr_files,
         }
         if pr_id is not None:
             initial_state["pr_id"] = pr_id
@@ -370,15 +470,22 @@ def main(argv=None):
         report_markdown: str = final_state.get("report_markdown", "")
         verified_findings: list = final_state.get("verified_findings", [])
 
-        # Persist signatures for standalone local runs (PR posting handles persistence after publishing)
-        if pr_id is None:
-            new_signatures = [f["signature"] for f in verified_findings if f.get("signature")]
-            os.makedirs(signatures_dir, exist_ok=True)
-            try:
-                with open(signatures_path, "w", encoding="utf-8") as f:
-                    json.dump(new_signatures, f, indent=2)
-            except Exception as e:
-                logger.warning(f"Failed to save current signatures: {e}")
+        # Persist state and signatures
+        new_signatures = [f["signature"] for f in verified_findings if f.get("signature")]
+        combined_signatures = list(dict.fromkeys(previous_signatures + new_signatures))
+        os.makedirs(signatures_dir, exist_ok=True)
+        try:
+            state_data = {
+                "last_reviewed_commit_sha": current_head_sha,
+                "signatures": combined_signatures if pr_id is None else new_signatures,
+            }
+            with open(state_path, "w", encoding="utf-8") as f:
+                json.dump(state_data, f, indent=2)
+            with open(signatures_path, "w", encoding="utf-8") as f:
+                json.dump(state_data["signatures"], f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save state and signatures: {e}")
+
 
         # Write the Markdown report to disk atomically inside reports/ directory
         reports_dir = os.path.join(repo_path, "reports")

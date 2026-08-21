@@ -260,6 +260,23 @@ class Config:
         return mode
 
     @classmethod
+    def diff_mode(cls) -> str:
+        """
+        Returns the configured PR git diff mode.
+
+        Returns:
+            ``"auto"`` (default) — use incremental diff (previous SHA to HEAD) on PR updates if previous state exists, full diff otherwise.
+            ``"full"`` — always compare base branch to HEAD.
+            ``"incremental"`` — always compare previous reviewed SHA to HEAD.
+        """
+        git_block = config.get("git", {})
+        mode = str(git_block.get("diff_mode", "auto")).lower() if isinstance(git_block, dict) else "auto"
+        if mode not in ("auto", "full", "incremental"):
+            return "auto"
+        return mode
+
+
+    @classmethod
     def llm_model_name(cls) -> str:
         """Returns the configured LLM model name."""
         llm = config.get("llm", {})

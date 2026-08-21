@@ -435,15 +435,25 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
     repo_structure = _get_repo_structure(repo_path)
     node_log.record(f"📁 Repo structure: {len(repo_structure.splitlines())} tracked files")
 
-    # 2. Extract files touched by this diff
+    # 2. Extract files touched by this diff (and full PR context files if incremental)
     touched_files = _extract_touched_files(git_diff)
-    node_log.record(f"🔍 Touched files in diff: {len(touched_files)}")
+    full_pr_files: List[str] = state.get("full_pr_files", [])
+    from ..utils.git_utils import normalize_file_path
+    all_context_files = list(dict.fromkeys(touched_files + [normalize_file_path(f) for f in full_pr_files if f]))
+
+    if state.get("is_incremental"):
+        node_log.record(
+            f"⚡ Incremental diff mode active: {len(touched_files)} files in incremental diff, "
+            f"{len(all_context_files)} total files in PR context."
+        )
+    else:
+        node_log.record(f"🔍 Touched files in diff: {len(touched_files)}")
 
     # 3. AST analysis — skip gracefully if file is missing or binary
     analyzer = UniversalASTAnalyzer()
     ast_map: Dict[str, Any] = {}
     skipped = 0
-    for rel_path in touched_files:
+    for rel_path in all_context_files:
         abs_path = os.path.join(repo_path, rel_path)
         if not os.path.isfile(abs_path):
             skipped += 1
@@ -464,8 +474,9 @@ def build_context_node(state: ReviewState) -> Dict[str, Any]:
     # 5. Cross-reference search — find usages of touched module names
     max_search_files = Config.codelens_max_search_files()
     search_parts: List[str] = []
-    seen_files = set(touched_files)
-    for rel_path in touched_files[:max_search_files]:
+    seen_files = set(all_context_files)
+    for rel_path in all_context_files[:max_search_files]:
+
         basename = os.path.splitext(os.path.basename(rel_path))[0]
         if not basename or basename in ("__init__", "index"):
             continue
