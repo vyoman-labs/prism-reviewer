@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Langfuse SDK Version Compatibility**: Updated observability setup instructions and workflow guidelines to explicitly specify `langfuse>=2.0.0,<3.0.0` for LiteLLM telemetry callback compatibility. Updated minimum `litellm` dependency bound to `>=1.40.0`.
+- **Langfuse Host Environment Variable Guidance**: Updated `docs/observability_setup.md` to document the requirement for `LANGFUSE_HOST` over `LANGFUSE_BASE_URL` in Langfuse Python SDK v2, and added a troubleshooting guide covering regional host endpoints and secret access in PRs from forks.
+- **Telemetry Metric Publication Logging & Queue Flush**: Added `ObservabilityStatusLogger` callback and `TokenUsageManager.flush_callbacks()` in `src/prism_reviewer/monitoring/manager.py` to emit real-time success (`INFO`) and failure (`ERROR`) logs for LiteLLM/Langfuse metric publishing, and explicitly flush telemetry queues before process completion.
 
 ## [1.0.0] - 2026-08-11
 

@@ -19,6 +19,7 @@ from .utils.git_utils import (
 )
 
 from .utils.signature import get_finding_signature
+from .monitoring.manager import monitoring_manager
 
 
 def _resolve_pr_api_details(repo_path: str, logger: Any) -> tuple[str, str, int | None]:
@@ -509,6 +510,10 @@ def main(argv=None):
 
         logger.info(f"[cli] Review report generated at: {report_path}")
         logger.info(f"[cli] Verified findings artifact generated at: {findings_path}")
+
+        # Flush active LiteLLM observability callbacks (e.g. Langfuse)
+        monitoring_manager.flush_callbacks()
+
         logger.info("[cli] Core process completed.")
     else:
         parser.print_help()

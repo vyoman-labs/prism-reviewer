@@ -255,3 +255,30 @@ Log in to your Langfuse dashboard (`https://cloud.langfuse.com` or `http://local
 Log in to your Jaeger UI (`http://localhost:16686`) or Grafana Tempo dashboard:
 - Select service: `prism-reviewer`.
 - Inspect spans named `litellm:completion` with GenAI semantic attributes (`gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`).
+
+---
+
+## 6. Troubleshooting Missing Langfuse Traces
+
+If LiteLLM logs confirm registration of the `langfuse` callback (`INFO - Registered LiteLLM success callback: langfuse`), but data does not appear in your Langfuse dashboard, check the following common causes:
+
+### 1. Environment Variable Naming (`LANGFUSE_HOST` vs `LANGFUSE_BASE_URL`)
+* The official **Langfuse Python SDK v2** looks specifically for **`LANGFUSE_HOST`** (not `LANGFUSE_BASE_URL`).
+* If `LANGFUSE_HOST` is omitted or named `LANGFUSE_BASE_URL`, the SDK silently defaults to the US cloud host (`https://cloud.langfuse.com`). If your project is hosted on another instance (such as Japan `https://jp.cloud.langfuse.com`, Europe `https://eu.cloud.langfuse.com`, or a self-hosted URL), telemetry requests sent to the US host will fail silently or be rejected (`401 Unauthorized`).
+* **Fix**: Ensure `LANGFUSE_HOST` is explicitly declared in your workflow or environment:
+  ```yaml
+  env:
+    LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+    LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+    LANGFUSE_HOST: ${{ vars.LANGFUSE_HOST}} # or "https://jp.cloud.langfuse.com"
+    LANGFUSE_BASE_URL: ${{ vars.LANGFUSE_BASE_URL }} # optional alias for compatibility
+  ```
+
+### 2. Regional Instance & Console Project Selection
+* Verify that you are logged into the correct web console endpoint corresponding to your `LANGFUSE_HOST` (e.g. `https://jp.cloud.langfuse.com` vs `https://cloud.langfuse.com` vs `https://eu.cloud.langfuse.com`).
+* Ensure that the project selected in the top-left project switcher matches the API key credentials (`pk-lf-...` / `sk-lf-...`).
+
+### 3. GitHub Secret Accessibility in Pull Request Context
+* When pull requests originate from **forked repositories**, GitHub Actions automatically restricts access to repository secrets (`LANGFUSE_SECRET_KEY` and `LANGFUSE_PUBLIC_KEY` evaluate to empty strings `""`).
+* When API keys are empty, telemetry events are dropped silently by the Langfuse SDK.
+

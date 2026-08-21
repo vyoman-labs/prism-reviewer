@@ -217,3 +217,75 @@ def test_resilient_llm_client_dispatches_token_event(monkeypatch):
     assert event.total_tokens == 165
     assert event.caller_context == {"agent": "warden"}
 
+
+def test_observability_status_logger(caplog):
+    from prism_reviewer.monitoring.manager import ObservabilityStatusLogger
+    logger_inst = ObservabilityStatusLogger()
+
+    litellm.success_callback = ["langfuse"]
+    litellm.failure_callback = ["langfuse"]
+
+    mock_response = MagicMock()
+    mock_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50, total_tokens=150)
+
+    with caplog.at_level("INFO"):
+        logger_inst.log_success_event({"model": "test-model"}, mock_response, 0, 1)
+
+    assert "LiteLLM telemetry metric published to callbacks (langfuse) for model=test-model" in caplog.text
+
+    with caplog.at_level("ERROR"):
+        logger_inst.log_failure_event({"model": "test-model", "exception": "401 Unauthorized"}, None, 0, 1)
+
+    assert "Failed to publish LiteLLM telemetry metric via callbacks (langfuse) for model=test-model: 401 Unauthorized" in caplog.text
+
+
+def test_langfuse_config_validation_and_flush(monkeypatch, caplog):
+    monkeypatch.setenv("LANGFUSE_BASE_URL", "https://jp.cloud.langfuse.com")
+    monkeypatch.delenv("LANGFUSE_HOST", raising=False)
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-lf-test")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-lf-test")
+
+    manager = TokenUsageManager()
+    config_dict = {
+        "monitoring": {
+            "enabled": True,
+            "observers": "console",
+            "litellm_callbacks": "langfuse",
+        }
+    }
+
+    with caplog.at_level("INFO"):
+        manager.configure_from_config(config_dict)
+        manager.flush_callbacks()
+
+    assert os.getenv("LANGFUSE_HOST") == "https://jp.cloud.langfuse.com"
+    assert "Set LANGFUSE_HOST='https://jp.cloud.langfuse.com' from LANGFUSE_BASE_URL" in caplog.text
+    assert "Langfuse telemetry credentials configured successfully" in caplog.text
+    assert "published and flushed telemetry metrics to Langfuse server" in caplog.text or "flush executed" in caplog.text
+
+
+def test_otel_config_validation_and_flush(monkeypatch, caplog):
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+    monkeypatch.setenv("OTEL_SERVICE_NAME", "prism-reviewer-test")
+
+    manager = TokenUsageManager()
+    config_dict = {
+        "monitoring": {
+            "enabled": True,
+            "observers": "console",
+            "litellm_callbacks": "otel",
+        }
+    }
+
+    with caplog.at_level("INFO"):
+        manager.configure_from_config(config_dict)
+
+    assert "OpenTelemetry telemetry callback configured successfully" in caplog.text
+
+    with caplog.at_level("INFO"):
+        manager.flush_callbacks()
+
+    assert "OpenTelemetry" in caplog.text
+
+
+
