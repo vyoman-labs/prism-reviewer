@@ -45,13 +45,13 @@ Langfuse is a purpose-built LLM observability platform that tracks generation tr
    *Note: `langfuse` is an optional runtime dependency and is not included by default in `prism-reviewer` to keep the core package lightweight.*
    - **Local CLI / Virtual Environment**:
      ```bash
-     pip install langfuse
+     pip install "langfuse>=2.0.0,<3.0.0"
      ```
    - **GitHub Actions Workflows**:
-     Add an explicit `pip install langfuse` step prior to executing the action:
+     Add an explicit `pip install "langfuse>=2.0.0,<3.0.0"` step prior to executing the action:
      ```yaml
      - name: Install Telemetry Dependencies
-       run: pip install langfuse
+       run: pip install "langfuse>=2.0.0,<3.0.0"
 
      - name: Run Prism Reviewer
        uses: vyoman-labs/prism-reviewer@v1
