@@ -261,7 +261,7 @@ def test_langfuse_config_validation_and_flush(monkeypatch, caplog):
     assert os.getenv("LANGFUSE_HOST") == "https://jp.cloud.langfuse.com"
     assert "Set LANGFUSE_HOST='https://jp.cloud.langfuse.com' from LANGFUSE_BASE_URL" in caplog.text
     assert "Langfuse telemetry credentials configured successfully" in caplog.text
-    assert "published and flushed telemetry metrics to Langfuse server" in caplog.text or "flush executed" in caplog.text
+    assert "published and flushed telemetry metrics" in caplog.text
 
 
 def test_otel_config_validation_and_flush(monkeypatch, caplog):
