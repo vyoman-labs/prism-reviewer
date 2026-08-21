@@ -8,6 +8,33 @@ from .observers import ConsoleLoggerObserver, JSONLFileObserver
 logger = get_logger("prism_reviewer.monitoring.manager")
 
 
+def patch_langfuse_version_compatibility() -> None:
+    """
+    Ensures compatibility between LiteLLM's Langfuse logger integration and different versions of the Langfuse SDK.
+    LiteLLM attempts to access `langfuse.version.__version__`, whereas newer versions of Langfuse moved version
+    metadata to `langfuse._version` or `langfuse.__version__`.
+    """
+    try:
+        import sys
+        lf = sys.modules.get("langfuse")
+        if lf is None:
+            try:
+                import langfuse as lf  # type: ignore
+            except ImportError:
+                return
+
+        if lf is not None and not hasattr(lf, "version"):
+            if hasattr(lf, "_version"):
+                setattr(lf, "version", getattr(lf, "_version"))
+            else:
+                import types
+                _v_mod = types.ModuleType("version")
+                setattr(_v_mod, "__version__", getattr(lf, "__version__", "1.0.0"))
+                setattr(lf, "version", _v_mod)
+    except Exception as e:
+        logger.debug(f"Langfuse version compatibility patch skipped: {e}")
+
+
 class TokenUsageManager:
     """
     Central manager for LLM token usage monitoring and observability integrations.
@@ -87,6 +114,9 @@ class TokenUsageManager:
             callback_names = []
 
         if callback_names:
+            if "langfuse" in callback_names:
+                patch_langfuse_version_compatibility()
+
             if not isinstance(litellm.success_callback, list):
                 litellm.success_callback = []
             if not isinstance(litellm.failure_callback, list):

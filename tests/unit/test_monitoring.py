@@ -216,3 +216,21 @@ def test_resilient_llm_client_dispatches_token_event(monkeypatch):
     assert event.completion_tokens == 45
     assert event.total_tokens == 165
     assert event.caller_context == {"agent": "warden"}
+
+
+def test_patch_langfuse_version_compatibility():
+    import sys
+    from types import ModuleType
+    from prism_reviewer.monitoring.manager import patch_langfuse_version_compatibility
+
+    # Mock a langfuse module without .version but with ._version
+    mock_lf = ModuleType("langfuse")
+    mock_v = ModuleType("_version")
+    mock_v.__version__ = "2.1.0"
+    mock_lf._version = mock_v
+
+    with patch.dict(sys.modules, {"langfuse": mock_lf}):
+        patch_langfuse_version_compatibility()
+        assert hasattr(mock_lf, "version")
+        assert getattr(mock_lf, "version").__version__ == "2.1.0"
+

@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI Diff Parameters**: Added `--diff-mode` and `--compare-range` options to the `prism-review` CLI.
 - **Persistent State Tracking**: Added `.prism_reviewer/state.json` persistence to track `last_reviewed_commit_sha` and deduplication signatures across runs.
 
+### Fixed
+- **Langfuse SDK Version Attribute Compatibility**: Added runtime patch (`patch_langfuse_version_compatibility`) in `TokenUsageManager` to safely handle differences in version attribute location (`langfuse.version`, `langfuse._version`, `langfuse.__version__`) between `litellm` and various `langfuse` Python SDK versions. Updated minimum `litellm` dependency bound to `>=1.40.0` to ensure GitHub Actions using `prism-reviewer` 1.1.0 or latest execute without AttributeError failures.
+
 ## [1.0.0] - 2026-08-11
 
 
