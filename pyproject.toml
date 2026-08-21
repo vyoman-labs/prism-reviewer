@@ -23,6 +23,10 @@ dependencies = [
     "tree-sitter-c>=0.23.4",
     "tree-sitter-go>=0.23.4",
     "tree-sitter-rust>=0.23.2",
+    "tree-sitter-yaml>=0.7.0",
+    "tree-sitter-html>=0.23.0",
+    "tree-sitter-json>=0.24.0",
+    "tree-sitter-bash>=0.25.0",
 ]
 
 [project.optional-dependencies]

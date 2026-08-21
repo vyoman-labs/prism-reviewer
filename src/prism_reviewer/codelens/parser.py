@@ -3,10 +3,11 @@ prism_reviewer.codelens.parser
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Analyzes source files to extract AST-level structural skeletons (classes,
 functions, methods, interfaces, namespaces, type definitions) using
-tree-sitter grammars.
+tree-sitter grammars and structural parsers.
 
 Supported languages (when the corresponding grammar package is installed):
-    Python, Java, TypeScript / TSX, JavaScript / JSX, C, C++, Go.
+    Python, Java, TypeScript / TSX, JavaScript / JSX, C, C++, Go, Rust,
+    YAML, HTML, JSON, Bash, Gherkin (.feature), Dockerfile, Makefile.
 
 If tree-sitter or an individual grammar package is not available the module
 degrades gracefully: files with unsupported extensions produce a ``plain-text``
@@ -16,6 +17,7 @@ skeleton containing a single whole-file symbol.
 from __future__ import annotations
 
 import os
+import re
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from ..core.logger import get_logger
@@ -133,6 +135,40 @@ class UniversalASTAnalyzer:
         except ImportError as e:
             logger.warning(f"Could not import tree-sitter-rust: {e}")
 
+        # Load YAML
+        try:
+            import tree_sitter_yaml
+            yaml_lang = lambda: Language(tree_sitter_yaml.language())
+            self._lang_initializers[".yml"] = yaml_lang
+            self._lang_initializers[".yaml"] = yaml_lang
+        except ImportError as e:
+            logger.warning(f"Could not import tree-sitter-yaml: {e}")
+
+        # Load HTML
+        try:
+            import tree_sitter_html
+            html_lang = lambda: Language(tree_sitter_html.language())
+            self._lang_initializers[".html"] = html_lang
+            self._lang_initializers[".htm"] = html_lang
+        except ImportError as e:
+            logger.warning(f"Could not import tree-sitter-html: {e}")
+
+        # Load JSON
+        try:
+            import tree_sitter_json
+            self._lang_initializers[".json"] = lambda: Language(tree_sitter_json.language())
+        except ImportError as e:
+            logger.warning(f"Could not import tree-sitter-json: {e}")
+
+        # Load Bash
+        try:
+            import tree_sitter_bash
+            bash_lang = lambda: Language(tree_sitter_bash.language())
+            self._lang_initializers[".sh"] = bash_lang
+            self._lang_initializers[".bash"] = bash_lang
+        except ImportError as e:
+            logger.warning(f"Could not import tree-sitter-bash: {e}")
+
     # ------------------------------------------------------------------
     # Public helpers
     # ------------------------------------------------------------------
@@ -195,10 +231,13 @@ class UniversalASTAnalyzer:
 
         Applies several heuristics in priority order:
 
-        1. ``child_by_field_name("name")`` — works for most language grammars.
-        2. ``child_by_field_name("declarator")`` — C/C++ function definitions.
-        3. Parent-level lookup for JS/TS arrow functions assigned to variables.
-        4. Fallback scan for common identifier child nodes.
+        1. HTML element naming (tag name + optional id attribute).
+        2. YAML mapping pair key lookup.
+        3. JSON pair key lookup.
+        4. ``child_by_field_name("name")`` — works for most language grammars.
+        5. ``child_by_field_name("declarator")`` — C/C++ function definitions.
+        6. Parent-level lookup for JS/TS arrow functions assigned to variables.
+        7. Fallback scan for common identifier child nodes.
 
         Args:
             node:         A tree-sitter ``Node`` representing a target abstraction.
@@ -207,6 +246,43 @@ class UniversalASTAnalyzer:
         Returns:
             The extracted name, or ``"<anonymous>"`` if no name could be found.
         """
+        # HTML element naming
+        if node.type == "element":
+            start_tag = node.child_by_field_name("start_tag") or (node.children[0] if node.children and node.children[0].type == "start_tag" else None)
+            if start_tag is not None:
+                tag_name_node = start_tag.child_by_field_name("tag_name")
+                if tag_name_node is None:
+                    for child in start_tag.children:
+                        if child.type == "tag_name":
+                            tag_name_node = child
+                            break
+                tag_name = tag_name_node.text.decode("utf-8", errors="ignore") if tag_name_node else "element"
+                id_str = ""
+                for child in start_tag.children:
+                    if child.type == "attribute":
+                        attr_name = child.child_by_field_name("name") or (child.children[0] if child.children else None)
+                        if attr_name and attr_name.text.decode("utf-8", errors="ignore") == "id":
+                            attr_val = child.child_by_field_name("value") or (child.children[-1] if len(child.children) > 1 else None)
+                            if attr_val:
+                                val_text = attr_val.text.decode("utf-8", errors="ignore").strip("\"'")
+                                id_str = f"#{val_text}"
+                                break
+                return f"{tag_name}{id_str}"
+
+        # YAML mapping pair naming
+        if node.type in ("block_mapping_pair", "flow_pair"):
+            key_node = node.child_by_field_name("key")
+            if key_node is not None:
+                return key_node.text.decode("utf-8", errors="ignore").strip()
+            if node.children:
+                return node.children[0].text.decode("utf-8", errors="ignore").strip()
+
+        # JSON pair naming
+        if node.type == "pair":
+            key_node = node.child_by_field_name("key") or (node.children[0] if node.children else None)
+            if key_node is not None:
+                return key_node.text.decode("utf-8", errors="ignore").strip("\"'")
+
         # 1. Child by field 'name'
         name_node = node.child_by_field_name("name")
         if name_node is not None:
@@ -252,12 +328,6 @@ class UniversalASTAnalyzer:
         results: List[Dict[str, Any]] = []
 
         # Target AST node types across supported languages.
-        # Notes:
-        # - ``function_definition`` is shared by Python, C, and C++.
-        # - ``function_declaration`` is shared by JS/TS and Go.
-        # - ``class_declaration`` is shared by JS/TS and Java.
-        # - ``method_declaration`` is shared by Java and Go.
-        # - ``struct_specifier`` is shared by C and C++.
         target_types = {
             # Python
             "class_definition",
@@ -285,11 +355,16 @@ class UniversalASTAnalyzer:
             "impl_item",
             "trait_item",
             "mod_item",
+            # YAML
+            "block_mapping_pair",
+            # HTML
+            "element",
+            # JSON
+            "pair",
         }
 
         # Check if node matches target types
         if node.type in target_types or node.type == "function_definition":
-            # Extract boundaries. Convert to 1-indexed.
             start_line = node.start_point[0] + 1
             end_line = node.end_point[0] + 1
             name = self._extract_name(node, source_bytes)
@@ -306,6 +381,99 @@ class UniversalASTAnalyzer:
             results.extend(self._walk_tree(child, source_bytes))
 
         return results
+
+    def _parse_gherkin(self, text: str) -> List[Dict[str, Any]]:
+        """Extracts Feature, Background, Scenario, Scenario Outline, and Rule symbols from Gherkin files."""
+        lines = text.splitlines()
+        symbols: List[Dict[str, Any]] = []
+        gherkin_keywords = ("Feature:", "Scenario:", "Scenario Outline:", "Background:", "Rule:")
+
+        for i, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            for kw in gherkin_keywords:
+                if stripped.startswith(kw):
+                    name = stripped[len(kw):].strip() or kw.rstrip(":")
+                    kind = kw.rstrip(":").lower().replace(" ", "_")
+                    symbols.append({
+                        "name": name,
+                        "type": f"gherkin_{kind}",
+                        "start_line": i,
+                        "end_line": i,
+                    })
+                    break
+
+        for idx in range(len(symbols)):
+            if idx + 1 < len(symbols):
+                symbols[idx]["end_line"] = max(symbols[idx]["start_line"], symbols[idx + 1]["start_line"] - 1)
+            else:
+                symbols[idx]["end_line"] = max(1, len(lines))
+
+        return symbols
+
+    def _parse_extensionless(self, text: str, file_path: str) -> List[Dict[str, Any]]:
+        """Parses extensionless files such as Makefile, Dockerfile, or shebang scripts."""
+        lines = text.splitlines()
+        basename = os.path.basename(file_path)
+        basename_upper = basename.upper()
+
+        if "MAKEFILE" in basename_upper:
+            symbols: List[Dict[str, Any]] = []
+            for i, line in enumerate(lines, start=1):
+                if line and not line.startswith("\t") and not line.startswith("#") and ":" in line:
+                    parts = line.split(":", 1)
+                    target = parts[0].strip()
+                    if target and not target.startswith("."):
+                        symbols.append({
+                            "name": target,
+                            "type": "makefile_target",
+                            "start_line": i,
+                            "end_line": i,
+                        })
+            for idx in range(len(symbols)):
+                if idx + 1 < len(symbols):
+                    symbols[idx]["end_line"] = max(symbols[idx]["start_line"], symbols[idx + 1]["start_line"] - 1)
+                else:
+                    symbols[idx]["end_line"] = max(1, len(lines))
+            if symbols:
+                return symbols
+
+        if "DOCKERFILE" in basename_upper:
+            symbols: List[Dict[str, Any]] = []
+            docker_keywords = ("FROM", "STAGE", "LABEL", "RUN", "CMD", "ENTRYPOINT", "COPY", "ADD", "EXPOSE", "ENV")
+            for i, line in enumerate(lines, start=1):
+                stripped = line.strip()
+                first_word = stripped.split()[0].upper() if stripped else ""
+                if first_word in docker_keywords:
+                    symbols.append({
+                        "name": stripped,
+                        "type": "dockerfile_instruction",
+                        "start_line": i,
+                        "end_line": i,
+                    })
+            for idx in range(len(symbols)):
+                if idx + 1 < len(symbols):
+                    symbols[idx]["end_line"] = max(symbols[idx]["start_line"], symbols[idx + 1]["start_line"] - 1)
+                else:
+                    symbols[idx]["end_line"] = max(1, len(lines))
+            if symbols:
+                return symbols
+
+        # Shebang detection
+        if lines and lines[0].startswith("#!"):
+            shebang = lines[0].strip()
+            return [{
+                "name": f"{basename} ({shebang})",
+                "type": "shebang_script",
+                "start_line": 1,
+                "end_line": max(1, len(lines)),
+            }]
+
+        return [{
+            "name": basename,
+            "type": "file",
+            "start_line": 1,
+            "end_line": max(1, len(lines)),
+        }]
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -339,6 +507,32 @@ class UniversalASTAnalyzer:
         except Exception as e:
             logger.error(f"Failed to read file {file_path}: {e}")
             raise
+
+        # Handle Gherkin .feature files
+        if ext == ".feature":
+            try:
+                text_content = source_bytes.decode("utf-8", errors="ignore")
+                symbols = self._parse_gherkin(text_content)
+                return {
+                    "file_path": file_path,
+                    "mode": "ast",
+                    "symbols": symbols,
+                }
+            except Exception as e:
+                logger.error(f"Failed to parse Gherkin feature file {file_path}: {e}")
+
+        # Handle extensionless files
+        if not ext:
+            try:
+                text_content = source_bytes.decode("utf-8", errors="ignore")
+                symbols = self._parse_extensionless(text_content, file_path)
+                return {
+                    "file_path": file_path,
+                    "mode": "ast" if len(symbols) > 1 or (symbols and symbols[0]["type"] != "file") else "plain-text",
+                    "symbols": symbols,
+                }
+            except Exception as e:
+                logger.error(f"Failed to parse extensionless file {file_path}: {e}")
 
         parser = self._get_parser_for_extension(ext)
         if parser is None:

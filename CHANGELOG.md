@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Added
+- **Expanded AST & Structural File Parsing**: Added AST and structural parsing support in `UniversalASTAnalyzer` for YAML (`.yml`/`.yaml`), HTML (`.html`/`.htm`), JSON (`.json`), Bash (`.sh`/`.bash`), Gherkin (`.feature`), and extensionless files (`Dockerfile`, `Makefile`, shebang scripts) using tree-sitter grammars and regex section extractors.
 - **Pluggable LLM Token Usage Monitoring & Observability Framework**: Added a native event-driven token monitoring system (`prism_reviewer.monitoring`) that records `prompt_tokens`, `completion_tokens`, `total_tokens`, wall-clock latency, and caller metadata across all LLM requests.
 - **Native In-App Observers**: Added built-in observers including `ConsoleLoggerObserver` (emits structured logs via `prism_reviewer.logger`), `JSONLFileObserver` (thread-safe append-only audit logger writing to `.prism_reviewer/token_usage.jsonl`), and `CustomCallbackObserver`.
 - **Langfuse & OpenTelemetry Integration**: Added support for LiteLLM callback hooks, allowing seamless zero-code integration with **Langfuse** (`litellm_callbacks = "langfuse"`) for LLM tracing & cost dashboards, and **OpenTelemetry** (`litellm_callbacks = "otel"`) for enterprise APM distributed tracing.

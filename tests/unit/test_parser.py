@@ -200,9 +200,91 @@ fn my_rust_function() {}
     assert ("MyRustStruct", "impl_item") in syms
     assert ("my_rust_function", "function_item") in syms
 
+def test_ast_yaml(analyzer, tmp_path):
+    code = """\
+server:
+  port: 8080
+"""
+    file_path = tmp_path / "config.yml"
+    file_path.write_text(code, encoding="utf-8")
+    res = analyzer.get_ast_skeleton(str(file_path))
+    assert res["mode"] == "ast"
+    names = [s["name"] for s in res["symbols"]]
+    assert "server" in names
+
+def test_ast_html(analyzer, tmp_path):
+    code = """\
+<!DOCTYPE html>
+<html>
+  <body>
+    <div id="content">Hello</div>
+  </body>
+</html>
+"""
+    file_path = tmp_path / "index.html"
+    file_path.write_text(code, encoding="utf-8")
+    res = analyzer.get_ast_skeleton(str(file_path))
+    assert res["mode"] == "ast"
+    names = [s["name"] for s in res["symbols"]]
+    assert "div#content" in names or "html" in names
+
+def test_ast_gherkin(analyzer, tmp_path):
+    code = """\
+Feature: User Authentication
+
+  Scenario: Successful Login
+    Given user enters valid credentials
+"""
+    file_path = tmp_path / "login.feature"
+    file_path.write_text(code, encoding="utf-8")
+    res = analyzer.get_ast_skeleton(str(file_path))
+    assert res["mode"] == "ast"
+    syms = [(s["name"], s["type"]) for s in res["symbols"]]
+    assert ("User Authentication", "gherkin_feature") in syms
+    assert ("Successful Login", "gherkin_scenario") in syms
+
+def test_ast_extensionless_makefile(analyzer, tmp_path):
+    code = """\
+build:
+\techo "building"
+
+test:
+\tpytest
+"""
+    file_path = tmp_path / "Makefile"
+    file_path.write_text(code, encoding="utf-8")
+    res = analyzer.get_ast_skeleton(str(file_path))
+    assert res["mode"] == "ast"
+    syms = [(s["name"], s["type"]) for s in res["symbols"]]
+    assert ("build", "makefile_target") in syms
+    assert ("test", "makefile_target") in syms
+
+def test_ast_extensionless_dockerfile(analyzer, tmp_path):
+    code = """\
+FROM python:3.12
+WORKDIR /app
+CMD ["python", "main.py"]
+"""
+    file_path = tmp_path / "Dockerfile"
+    file_path.write_text(code, encoding="utf-8")
+    res = analyzer.get_ast_skeleton(str(file_path))
+    assert res["mode"] == "ast"
+    types = [s["type"] for s in res["symbols"]]
+    assert "dockerfile_instruction" in types
+
+def test_ast_extensionless_shebang(analyzer, tmp_path):
+    code = "#!/bin/bash\necho 'hello'"
+    file_path = tmp_path / "run_script"
+    file_path.write_text(code, encoding="utf-8")
+    res = analyzer.get_ast_skeleton(str(file_path))
+    assert len(res["symbols"]) == 1
+    assert res["symbols"][0]["type"] == "shebang_script"
+
 def test_supported_languages(analyzer):
     """supported_languages returns extensions for all loaded grammars."""
     langs = set(analyzer.supported_languages)
     expected = {".py", ".ts", ".tsx", ".js", ".jsx", ".java",
-                ".cpp", ".cc", ".cxx", ".h", ".hpp", ".c", ".go", ".rs"}
+                ".cpp", ".cc", ".cxx", ".h", ".hpp", ".c", ".go", ".rs",
+                ".yml", ".yaml", ".html", ".htm", ".json", ".sh", ".bash"}
     assert expected.issubset(langs)
+

@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 import litellm
 from litellm.integrations.custom_logger import CustomLogger
 
@@ -176,6 +176,20 @@ class TokenUsageManager:
             )
         else:
             logger.info(f"Langfuse telemetry credentials configured successfully (host: {host}).")
+            try:
+                from litellm.integrations.langfuse.langfuse import LangFuseLogger
+                lf_inst = LangFuseLogger(
+                    langfuse_public_key=pk,
+                    langfuse_secret=sk,
+                    langfuse_host=host,
+                )
+                self._langfuse_logger_instance = lf_inst
+                if not isinstance(litellm.callbacks, list):
+                    litellm.callbacks = []
+                if not any(isinstance(c, LangFuseLogger) for c in litellm.callbacks):
+                    litellm.callbacks.append(cast(Any, lf_inst))
+            except Exception as e:
+                logger.warning(f"Could not pre-instantiate LangFuseLogger instance: {e}")
 
     def _validate_otel_config(self) -> None:
         """Validates OpenTelemetry configuration and logs status or warnings."""
@@ -213,31 +227,50 @@ class TokenUsageManager:
             )
             return
 
-        flushed = False
+        flushed_count = 0
+        seen_clients: set[int] = set()
+
         try:
-            from litellm.litellm_core_utils import litellm_logging
-            lfl = getattr(litellm_logging, "langFuseLogger", None)
-            if lfl is not None:
-                client = getattr(lfl, "Langfuse", getattr(lfl, "langfuse", None))
-                if client is not None and hasattr(client, "flush"):
-                    client.flush()
-                    flushed = True
+            # 1. Search LiteLLM's LangFuseHandler.langfuse_logger_map where LiteLLM stores active loggers
+            try:
+                from litellm.integrations.langfuse.langfuse_handler import LangFuseHandler
+                logger_map = getattr(LangFuseHandler, "langfuse_logger_map", {})
+                if isinstance(logger_map, dict):
+                    for logger_obj in logger_map.values():
+                        client = getattr(logger_obj, "Langfuse", getattr(logger_obj, "langfuse", None))
+                        if client is not None and hasattr(client, "flush") and id(client) not in seen_clients:
+                            client.flush()
+                            seen_clients.add(id(client))
+                            flushed_count += 1
+            except Exception as e:
+                logger.debug(f"Could not flush LangFuseHandler logger map: {e}")
 
-            if not flushed:
-                try:
-                    from litellm.integrations.langfuse.langfuse import LangFuseLogger
-                    lfl_inst = LangFuseLogger()
-                    client = getattr(lfl_inst, "Langfuse", getattr(lfl_inst, "langfuse", None))
-                    if client is not None and hasattr(client, "flush"):
+            # 2. Check LiteLLM module-level langFuseLogger instance if set
+            try:
+                from litellm.litellm_core_utils import litellm_logging
+                lfl = getattr(litellm_logging, "langFuseLogger", None)
+                if lfl is not None:
+                    client = getattr(lfl, "Langfuse", getattr(lfl, "langfuse", None))
+                    if client is not None and hasattr(client, "flush") and id(client) not in seen_clients:
                         client.flush()
-                        flushed = True
-                except Exception:
-                    pass
+                        seen_clients.add(id(client))
+                        flushed_count += 1
+            except Exception as e:
+                logger.debug(f"Could not flush module-level langFuseLogger: {e}")
 
-            if flushed:
-                logger.info(f"Successfully published and flushed telemetry metrics to Langfuse server ({host}).")
+            # 3. Check explicitly instantiated logger instance if set on manager
+            if getattr(self, "_langfuse_logger_instance", None) is not None:
+                lf_inst = self._langfuse_logger_instance
+                client = getattr(lf_inst, "Langfuse", getattr(lf_inst, "langfuse", None))
+                if client is not None and hasattr(client, "flush") and id(client) not in seen_clients:
+                    client.flush()
+                    seen_clients.add(id(client))
+                    flushed_count += 1
+
+            if flushed_count > 0:
+                logger.info(f"Successfully published and flushed telemetry metrics for {flushed_count} active Langfuse client(s) to server ({host}).")
             else:
-                logger.warning(f"Langfuse telemetry flush executed, but no active Langfuse client instance was found for host ({host}).")
+                logger.warning(f"Langfuse telemetry flush executed, but no active Langfuse client instances with telemetry events were found for host ({host}).")
 
         except Exception as e:
             logger.error(f"Failed to flush telemetry metrics to Langfuse server ({host}): {e}")
