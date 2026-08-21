@@ -188,6 +188,19 @@ class TokenUsageManager:
                     litellm.callbacks = []
                 if not any(isinstance(c, LangFuseLogger) for c in litellm.callbacks):
                     litellm.callbacks.append(cast(Any, lf_inst))
+
+                # Non-blocking authentication verification (logs ERROR on 401 without failing step)
+                client = getattr(lf_inst, "Langfuse", getattr(lf_inst, "langfuse", None))
+                if client is not None and hasattr(client, "auth_check"):
+                    try:
+                        auth_res = client.auth_check()
+                        if auth_res is False:
+                            logger.error(f"Langfuse authentication check failed for host ({host}): Invalid API keys or project permissions.")
+                    except Exception as auth_err:
+                        logger.error(
+                            f"Langfuse authentication failed for host ({host}): {auth_err}. "
+                            "Telemetry traces will be dropped by Langfuse server. Verify LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, and LANGFUSE_HOST."
+                        )
             except Exception as e:
                 logger.warning(f"Could not pre-instantiate LangFuseLogger instance: {e}")
 

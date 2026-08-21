@@ -288,4 +288,27 @@ def test_otel_config_validation_and_flush(monkeypatch, caplog):
     assert "OpenTelemetry" in caplog.text
 
 
+def test_langfuse_auth_check_error_logging(monkeypatch, caplog):
+    monkeypatch.setenv("LANGFUSE_HOST", "https://jp.cloud.langfuse.com")
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk-lf-invalid")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-lf-invalid")
+
+    manager = TokenUsageManager()
+    config_dict = {
+        "monitoring": {
+            "enabled": True,
+            "observers": "console",
+            "litellm_callbacks": "langfuse",
+        }
+    }
+
+    with patch("langfuse.client.Langfuse.auth_check", side_effect=Exception("Invalid credentials 401")):
+        with caplog.at_level("ERROR"):
+            manager.configure_from_config(config_dict)
+
+    assert "Langfuse authentication failed for host" in caplog.text
+    assert "Invalid credentials 401" in caplog.text
+
+
+
 
