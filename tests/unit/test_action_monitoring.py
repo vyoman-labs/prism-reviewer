@@ -32,7 +32,7 @@ def test_action_monitoring_shell_script_logic(tmp_path: Path):
     Test the bash auto-detection logic used in action.yml's Install Telemetry Dependencies step.
     """
     bash_script = """
-    CALLBACKS_LOWER=$(echo "${LITELLM_CALLBACKS:-$PRISM_MONITORING_LITELLM_CALLBACKS}" | tr '[:upper:]' '[:lower:]')
+    CALLBACKS_LOWER=$(echo "${PRISM_MONITORING_LITELLM_CALLBACKS}" | tr '[:upper:]' '[:lower:]')
     MONITORING_LOWER=$(echo "${ENABLE_MONITORING}" | tr '[:upper:]' '[:lower:]')
 
     if [ "$MONITORING_LOWER" = "false" ]; then
@@ -85,11 +85,11 @@ def test_action_monitoring_shell_script_logic(tmp_path: Path):
     assert out == "SKIPPED_NO_CALLBACKS"
 
     # 2. Explicit false -> SKIPPED_EXPLICIT_FALSE
-    out = run_check({"ENABLE_MONITORING": "false", "LITELLM_CALLBACKS": "langfuse"})
+    out = run_check({"ENABLE_MONITORING": "false", "PRISM_MONITORING_LITELLM_CALLBACKS": "langfuse"})
     assert out == "SKIPPED_EXPLICIT_FALSE"
 
-    # 3. Langfuse via LITELLM_CALLBACKS
-    out = run_check({"ENABLE_MONITORING": "auto", "LITELLM_CALLBACKS": "langfuse"})
+    # 3. Langfuse via PRISM_MONITORING_LITELLM_CALLBACKS
+    out = run_check({"ENABLE_MONITORING": "auto", "PRISM_MONITORING_LITELLM_CALLBACKS": "langfuse"})
     assert out == "INSTALL_LANGFUSE"
 
     # 4. Langfuse via LANGFUSE_PUBLIC_KEY
@@ -101,5 +101,5 @@ def test_action_monitoring_shell_script_logic(tmp_path: Path):
     assert out == "INSTALL_OTEL"
 
     # 6. Both Langfuse and OTel
-    out = run_check({"ENABLE_MONITORING": "auto", "LITELLM_CALLBACKS": "langfuse,otel"})
+    out = run_check({"ENABLE_MONITORING": "auto", "PRISM_MONITORING_LITELLM_CALLBACKS": "langfuse,otel"})
     assert out == "INSTALL_MONITORING"

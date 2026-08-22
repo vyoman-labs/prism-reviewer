@@ -446,7 +446,6 @@ Open or update any Pull Request. Prism Reviewer will automatically analyze your 
 | `github-token` | No | `${{ github.token }}` | Token used to post review comments. |
 | `base-ref` | No | `${{ github.base_ref }}` | Base branch for git diff comparison. |
 | `agents-mode` | No | `parallel` | Agent execution mode (`parallel` or `sequential`). |
-| `litellm-callbacks` | No | `""` | Optional LiteLLM telemetry callbacks to enable (e.g. `langfuse`, `otel`, `langfuse,otel`). |
 | `enable-monitoring` | No | `auto` | Control telemetry dependency installation (`auto`, `true`, `false`). |
 
 ---

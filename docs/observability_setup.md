@@ -48,14 +48,14 @@ Langfuse is a purpose-built LLM observability platform that tracks generation tr
      pip install "langfuse>=2.0.0,<3.0.0"
      ```
     - **GitHub Actions Workflows**:
-      The GitHub Action automatically detects telemetry credentials and installs required telemetry packages in a dedicated step. You can enable callbacks using the `litellm-callbacks` action input or environment variables:
+      The GitHub Action automatically detects telemetry credentials and installs required telemetry packages in a dedicated step. You can enable callbacks using the `PRISM_MONITORING_LITELLM_CALLBACKS` environment variable:
       ```yaml
       - name: Run Prism Reviewer
         uses: vyoman-labs/prism-reviewer@v1
         with:
           llm-api-key: ${{ secrets.LLM_PROVIDER_API_KEY }}
-          litellm-callbacks: "langfuse"
         env:
+          PRISM_MONITORING_LITELLM_CALLBACKS: "langfuse"
           LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
           LANGFUSE_HOST: "https://cloud.langfuse.com"

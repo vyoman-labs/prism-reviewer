@@ -55,12 +55,6 @@ jobs:
           # private-key: ${{ secrets.PRISM_REVIEWER_PRIVATE_KEY }}
           # owner: ${{ github.repository_owner }}
 
-          # =========================================================================
-          # Optional LLM Observability & Token Usage Monitoring Inputs
-          # =========================================================================
-          # LiteLLM telemetry callbacks to enable (e.g. 'langfuse', 'otel', 'langfuse,otel')
-          # litellm-callbacks: 'langfuse'
-
           # Control telemetry package installation ('auto', 'true', or 'false', defaults to 'auto')
           # enable-monitoring: 'auto'
 
@@ -69,6 +63,7 @@ jobs:
         # Pass telemetry secrets/host endpoints here if using Langfuse or OpenTelemetry
         # =========================================================================
         # env:
+        #   PRISM_MONITORING_LITELLM_CALLBACKS: 'langfuse' # e.g. 'langfuse', 'otel', 'langfuse,otel'
         #   LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
         #   LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
         #   LANGFUSE_HOST: "https://cloud.langfuse.com" # or self-hosted endpoint URL

@@ -36,10 +36,6 @@ inputs:
     description: 'Execution mode for review agents (parallel or sequential)'
     required: false
     default: 'parallel'
-  litellm-callbacks:
-    description: 'LiteLLM telemetry callbacks to enable (e.g. "langfuse", "otel", "langfuse,otel")'
-    required: false
-    default: ''
   enable-monitoring:
     description: 'Control telemetry package installation ("auto", "true", or "false")'
     required: false
@@ -62,14 +58,13 @@ runs:
     - name: Install Telemetry Dependencies (Langfuse / OpenTelemetry)
       shell: bash
       env:
-        LITELLM_CALLBACKS: ${{ inputs.litellm-callbacks }}
-        ENABLE_MONITORING: ${{ inputs.enable-monitoring }}
         PRISM_MONITORING_LITELLM_CALLBACKS: ${{ env.PRISM_MONITORING_LITELLM_CALLBACKS }}
+        ENABLE_MONITORING: ${{ inputs.enable-monitoring }}
         LANGFUSE_PUBLIC_KEY: ${{ env.LANGFUSE_PUBLIC_KEY }}
         LANGFUSE_SECRET_KEY: ${{ env.LANGFUSE_SECRET_KEY }}
         OTEL_EXPORTER_OTLP_ENDPOINT: ${{ env.OTEL_EXPORTER_OTLP_ENDPOINT }}
       run: |
-        CALLBACKS_LOWER=$(echo "${LITELLM_CALLBACKS:-$PRISM_MONITORING_LITELLM_CALLBACKS}" | tr '[:upper:]' '[:lower:]')
+        CALLBACKS_LOWER=$(echo "${PRISM_MONITORING_LITELLM_CALLBACKS}" | tr '[:upper:]' '[:lower:]')
         MONITORING_LOWER=$(echo "${ENABLE_MONITORING}" | tr '[:upper:]' '[:lower:]')
 
         if [ "$MONITORING_LOWER" = "false" ]; then
@@ -148,7 +143,7 @@ runs:
         GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
         GITHUB_APP_TOKEN: ${{ steps.resolve-token.outputs.app_token }}
         AGENTS_MODE: ${{ inputs.agents-mode }}
-        PRISM_MONITORING_LITELLM_CALLBACKS: ${{ inputs.litellm-callbacks || env.PRISM_MONITORING_LITELLM_CALLBACKS }}
+        PRISM_MONITORING_LITELLM_CALLBACKS: ${{ env.PRISM_MONITORING_LITELLM_CALLBACKS }}
       run: |
         BASE_TARGET="${{ inputs.base-ref }}"
         if [ -z "$BASE_TARGET" ]; then
