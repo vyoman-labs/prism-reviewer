@@ -11,10 +11,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 
-[project.urls]
-Homepage = "https://github.com/vyoman-labs/prism-reviewer"
-Repository = "https://github.com/vyoman-labs/prism-reviewer"
-Documentation = "https://github.com/vyoman-labs/prism-reviewer#readme"
 dependencies = [
     "litellm>=1.40.0",
     "langgraph>=0.2.0",
@@ -34,6 +30,11 @@ dependencies = [
     "tree-sitter-json>=0.24.0",
     "tree-sitter-bash>=0.25.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/vyoman-labs/prism-reviewer"
+Repository = "https://github.com/vyoman-labs/prism-reviewer"
+Documentation = "https://github.com/vyoman-labs/prism-reviewer#readme"
 
 [project.optional-dependencies]
 dev = [

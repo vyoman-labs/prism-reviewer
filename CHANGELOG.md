@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Consolidated Telemetry Callback Configuration**: Standardized LiteLLM telemetry callback configuration on `PRISM_MONITORING_LITELLM_CALLBACKS` environment variable in `action.yml` and documentation, removing the redundant `litellm-callbacks` action input.
 
+### Fixed
+- **PyProject PEP 621 Dependencies Structure**: Moved `dependencies` list out of `[project.urls]` table to top-level `[project]` key in `pyproject.toml`, fixing wheel build and package installation failures (`configuration error: project.urls.dependencies must be string`).
+
 ## [1.1.0] - 2026-08-21
 
 
