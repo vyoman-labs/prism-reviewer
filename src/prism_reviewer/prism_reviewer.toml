@@ -8,6 +8,8 @@ token = "${GITHUB_TOKEN}"
 # "update" (default): edit existing summary comment in-place on every push.
 # "append": post a new summary comment on every push (legacy behaviour).
 summary_mode = "${PRISM_SUMMARY_MODE|-update}"
+include_previous_comments = "${PRISM_INCLUDE_PREVIOUS_COMMENTS|-true}"
+max_previous_comments = "${PRISM_MAX_PREVIOUS_COMMENTS|-30}"
 
 [git]
 # "auto" (default): use incremental diff (previous SHA to HEAD) on PR updates if previous state exists, full diff otherwise.

@@ -197,7 +197,7 @@ def _render_markdown(
     # even when the comment is truncated in API list responses.
     lines: List[str] = [
         SUMMARY_COMMENT_MARKER,
-        "# \U0001f50d Prism Reviewer AI Code Review Report",
+        "# 🌌 Vyoman Labs | 🌈 Prism Reviewer AI Code Review Report",
         "",
         f"**Pull Request:** {pr_header}",
         f"**Reviewed:** {now}",

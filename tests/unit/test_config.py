@@ -234,6 +234,22 @@ def test_diff_mode_config(tmp_path):
     toml_file.write_text(toml_content, encoding="utf-8")
     config.reset_for_testing(str(toml_file))
     assert Config.diff_mode() == "incremental"
+def test_previous_comments_config(tmp_path):
+    """Verifies include_previous_comments and max_previous_comments config loading."""
+    config.reset_for_testing()
+    assert Config.include_previous_comments() is True
+    assert Config.max_previous_comments() == 30
+
+    toml_content = """
+    [github]
+    include_previous_comments = false
+    max_previous_comments = 15
+    """
+    toml_file = tmp_path / "prism_reviewer.toml"
+    toml_file.write_text(toml_content, encoding="utf-8")
+    config.reset_for_testing(str(toml_file))
+    assert Config.include_previous_comments() is False
+    assert Config.max_previous_comments() == 15
     config.reset_for_testing()
 
 

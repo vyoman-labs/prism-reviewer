@@ -260,6 +260,33 @@ class Config:
         return mode
 
     @classmethod
+    def include_previous_comments(cls) -> bool:
+        """
+        Returns whether fetching previous PR comments and discussions is enabled.
+        Defaults to True.
+        """
+        github = config.get("github", {})
+        val = github.get("include_previous_comments", True)
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, str):
+            return val.lower() in ("true", "1", "yes", "on")
+        return bool(val)
+
+    @classmethod
+    def max_previous_comments(cls) -> int:
+        """
+        Returns the maximum number of previous PR comments to include.
+        Defaults to 30.
+        """
+        github = config.get("github", {})
+        val = github.get("max_previous_comments", 30)
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return 30
+
+    @classmethod
     def diff_mode(cls) -> str:
         """
         Returns the configured PR git diff mode.

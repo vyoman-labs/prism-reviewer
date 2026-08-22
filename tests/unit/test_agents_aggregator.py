@@ -139,7 +139,7 @@ class TestRenderMarkdown:
     def test_no_findings_no_table(self) -> None:
         """_render_markdown with empty findings must not emit a table."""
         report = _render_markdown("Test PR", [], {"CRITICAL": 0, "MAJOR": 0, "ADVISORY": 0})
-        assert "|" not in report or "Agent" not in report  # no table headers
+        assert "| Agent |" not in report  # no table headers
 
     def test_finding_message_appears_in_report(self) -> None:
         """The finding message must appear verbatim in the rendered table."""
@@ -148,9 +148,9 @@ class TestRenderMarkdown:
         assert f["message"] in report
 
     def test_report_has_preamble_header(self) -> None:
-        """Report must contain the Prism Reviewer AI header."""
+        """Report must contain the Vyoman Labs | Prism Reviewer AI header."""
         report = _render_markdown("PR", [], {"CRITICAL": 0, "MAJOR": 0, "ADVISORY": 0})
-        assert "Prism Reviewer AI" in report
+        assert "Vyoman Labs | 🌈 Prism Reviewer AI" in report
 
     def test_report_includes_pr_id_when_provided(self) -> None:
         """Report header must include '#PR_ID - PR_TITLE' when pr_id is provided."""

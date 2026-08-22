@@ -596,3 +596,65 @@ def test_publish_review_comment_inline_body_is_not_full_summary(mock_github_clas
     assert summary_body not in review_body
     assert "inline findings applied" in review_body.lower() or "prism reviewer" in review_body.lower()
 
+
+@patch("prism_reviewer.services.github.Github")
+def test_fetch_pull_request_comments_filtering(mock_github_class):
+    """Verifies that fetch_pull_request_comments fetches review comments, includes MAJOR/CRITICAL, and excludes ADVISORY comments."""
+    mock_github_instance = MagicMock()
+    mock_github_class.return_value = mock_github_instance
+    mock_repo = MagicMock()
+    mock_github_instance.get_repo.return_value = mock_repo
+    mock_pr = MagicMock()
+    mock_repo.get_pull.return_value = mock_pr
+
+    # Create root comments with different severities and a reply
+    rc_critical = MagicMock()
+    rc_critical.id = 1
+    rc_critical.in_reply_to_id = None
+    rc_critical.body = "[CRITICAL] Potential buffer overflow"
+    rc_critical.path = "src/main.c"
+    rc_critical.line = 42
+    rc_critical.user.login = "warden_bot"
+
+    rc_reply = MagicMock()
+    rc_reply.id = 2
+    rc_reply.in_reply_to_id = 1
+    rc_reply.body = "Fixed buffer size allocation"
+    rc_reply.user.login = "dev_user"
+
+    rc_advisory = MagicMock()
+    rc_advisory.id = 3
+    rc_advisory.in_reply_to_id = None
+    rc_advisory.body = "[ADVISORY] Consider adding a docstring"
+    rc_advisory.path = "src/main.c"
+    rc_advisory.line = 10
+    rc_advisory.user.login = "inspector_bot"
+
+    mock_pr.get_review_comments.return_value = [rc_critical, rc_reply, rc_advisory]
+
+    ic_major = MagicMock()
+    ic_major.body = "[MAJOR] Database query unoptimized"
+    ic_major.user.login = "architect_bot"
+
+    ic_summary = MagicMock()
+    ic_summary.body = "<!-- prism-reviewer-summary -->\nSummary Report"
+    ic_summary.user.login = "github-actions[bot]"
+
+    mock_pr.get_issue_comments.return_value = [ic_major, ic_summary]
+
+    bridge = GitHubAppBridge("fake-token")
+    # Case 1: total comments (3) <= max_comments (30) -> no severity filtering, all included
+    result_all = bridge.fetch_pull_request_comments("owner/repo", 123, max_comments=30)
+    assert "CRITICAL" in result_all
+    assert "MAJOR" in result_all
+    assert "ADVISORY" in result_all
+    assert "<!-- prism-reviewer-summary -->" not in result_all
+
+    # Case 2: total comments (3) > max_comments (2) -> severity filtering applies, ADVISORY is dropped
+    result_filtered = bridge.fetch_pull_request_comments("owner/repo", 123, max_comments=2)
+    assert "CRITICAL" in result_filtered
+    assert "MAJOR" in result_filtered
+    assert "ADVISORY" not in result_filtered
+
+
+

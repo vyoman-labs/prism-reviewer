@@ -5,10 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prism-reviewer"
 version = "1.1.0"
-description = "A resilient and automated tool to review code repositories and pull requests using LLMs."
+description = "A resilient and automated multi-agent code review tool powered by LLMs, developed by Vyoman Labs."
+authors = [{ name = "Vyoman Labs" }]
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
+
+[project.urls]
+Homepage = "https://github.com/vyoman-labs/prism-reviewer"
+Repository = "https://github.com/vyoman-labs/prism-reviewer"
+Documentation = "https://github.com/vyoman-labs/prism-reviewer#readme"
 dependencies = [
     "litellm>=1.40.0",
     "langgraph>=0.2.0",

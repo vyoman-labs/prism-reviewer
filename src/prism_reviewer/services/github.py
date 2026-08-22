@@ -540,3 +540,112 @@ class GitHubAppBridge:
         except Exception as e:
             logger.error(f"Failed to fetch pull requests by date for {repo_name}: {e}")
             raise RuntimeError(f"Failed to fetch pull requests by date: {e}") from e
+
+    def fetch_pull_request_comments(
+        self,
+        repo_name: str,
+        pr_number: int,
+        max_comments: int = 30,
+    ) -> str:
+        """
+        Fetches previous PR review comments and discussions.
+
+        If the total comment count exceeds ``max_comments``, severity filtering is
+        applied to prioritize CRITICAL and MAJOR comments over low-priority ADVISORY comments.
+
+        Args:
+            repo_name: The full name of the repository (e.g. "owner/repo").
+            pr_number: The pull request number.
+            max_comments: Maximum number of comments to include (default 30).
+
+        Returns:
+            A formatted Markdown string summarizing previous PR comments, or empty string.
+        """
+        logger.info(f"Fetching prior PR comments for #{pr_number} in {repo_name}")
+        try:
+            repo = self.g.get_repo(repo_name)
+            pr = repo.get_pull(pr_number)
+
+            all_items: List[Dict[str, Any]] = []
+
+            # 1. Fetch inline review comment threads
+            review_comments = list(pr.get_review_comments())
+
+            # Group root comments and their replies
+            threads: Dict[int, List[Any]] = {}
+            for rc in review_comments:
+                reply_to = getattr(rc, "in_reply_to_id", None)
+                if reply_to is None:
+                    if rc.id not in threads:
+                        threads[rc.id] = []
+                    threads[rc.id].append(rc)
+                else:
+                    if reply_to not in threads:
+                        threads[reply_to] = []
+                    threads[reply_to].append(rc)
+
+            for root_id, thread_comments in threads.items():
+                root = thread_comments[0]
+                root_body = getattr(root, "body", "") or ""
+
+                # Skip summary comments or markers
+                if _SUMMARY_MARKER in root_body:
+                    continue
+
+                body_upper = root_body.upper()
+                is_advisory = ("ADVISORY" in body_upper) and ("CRITICAL" not in body_upper) and ("MAJOR" not in body_upper)
+
+                path = getattr(root, "path", "file")
+                line = getattr(root, "line", None) or getattr(root, "original_line", None) or "?"
+                author = getattr(getattr(root, "user", None), "login", "reviewer")
+
+                sev_tag = ""
+                if "CRITICAL" in body_upper:
+                    sev_tag = " [CRITICAL]"
+                elif "MAJOR" in body_upper:
+                    sev_tag = " [MAJOR]"
+                elif "ADVISORY" in body_upper:
+                    sev_tag = " [ADVISORY]"
+
+                entry = f"- **Inline Review on `{path}:{line}`{sev_tag}** (by @{author}):\n"
+                entry += f"  > {root_body.replace(chr(10), chr(10) + '  > ')}\n"
+
+                for reply in thread_comments[1:]:
+                    reply_body = getattr(reply, "body", "") or ""
+                    reply_author = getattr(getattr(reply, "user", None), "login", "user")
+                    if reply_body.strip():
+                        entry += f"  - *Reply by @{reply_author}*: {reply_body.replace(chr(10), ' ')}\n"
+
+                all_items.append({"text": entry.strip(), "is_advisory": is_advisory})
+
+            # 2. Fetch issue level comments
+            for ic in pr.get_issue_comments():
+                body = getattr(ic, "body", "") or ""
+                if _SUMMARY_MARKER in body:
+                    continue
+                body_upper = body.upper()
+                is_advisory = ("ADVISORY" in body_upper) and ("CRITICAL" not in body_upper) and ("MAJOR" not in body_upper)
+                author = getattr(getattr(ic, "user", None), "login", "user")
+                entry = f"- **General PR Comment** (by @{author}):\n  > {body.replace(chr(10), chr(10) + '  > ')}"
+                all_items.append({"text": entry.strip(), "is_advisory": is_advisory})
+
+            if not all_items:
+                return ""
+
+            # If total items <= max_comments, no severity filtering needed
+            if len(all_items) <= max_comments:
+                selected = [item["text"] for item in all_items]
+            else:
+                # Exceeds max_comments -> apply severity filtering (prioritize non-ADVISORY)
+                non_advisory = [item["text"] for item in all_items if not item["is_advisory"]]
+                if len(non_advisory) >= max_comments:
+                    selected = non_advisory[:max_comments]
+                else:
+                    advisory = [item["text"] for item in all_items if item["is_advisory"]]
+                    needed = max_comments - len(non_advisory)
+                    selected = non_advisory + advisory[:needed]
+
+            return "\n\n".join(selected)
+        except Exception as e:
+            logger.warning(f"Could not fetch prior PR comments for {repo_name} #{pr_number}: {e}")
+            return ""

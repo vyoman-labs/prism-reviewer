@@ -1,6 +1,8 @@
 # 🌈 Prism Reviewer
 
-Prism Reviewer is an agentic, AI-driven multi-agent code review system orchestrated via [LangGraph](https://github.com/langchain-ai/langgraph) and [LiteLLM](https://github.com/BerriAI/litellm). It acts as an autonomous gatekeeper for pull requests by performing targeted static analysis, dependency scanning, AST-based symbol inspection, and parallel LLM-guided code evaluation.
+> Developed by **[Vyoman Labs](https://github.com/vyoman-labs)**
+
+Prism Reviewer is an agentic, AI-driven multi-agent code review system developed by **Vyoman Labs** and orchestrated via [LangGraph](https://github.com/langchain-ai/langgraph) and [LiteLLM](https://github.com/BerriAI/litellm). It acts as an autonomous gatekeeper for pull requests by performing targeted static analysis, dependency scanning, AST-based symbol inspection, and parallel LLM-guided code evaluation.
 
 ---
 
@@ -38,7 +40,8 @@ The review execution lifecycle is modeled as a LangGraph workspace map-reduce gr
 
 ```mermaid
 flowchart TD
-    START([START]) --> BuildContext[Build Context Node]
+    START([START]) --> FetchComments["Fetch Prior PR Comments & Discussion<br/>(Filtered: MAJOR & CRITICAL)"]
+    FetchComments --> BuildContext[Build Context Node]
     BuildContext --> |Partition Diff into Regions & Fan Out| Router{_fan_out_router}
     Router -->|Region 1..N| Warden[👮 Warden Node<br/>Security & Compliance]
     Router -->|Region 1..N| Architect[📐 Architect Node<br/>Design & Performance]
@@ -52,14 +55,15 @@ flowchart TD
 ```
 
 ### Flow Execution Steps:
-1. **`build_context_node`** (implemented in [nodes.py](src/prism_reviewer/agents/nodes.py)): Gathers directory profiles, runs AST scans on modified files, scans dependencies, parses usage references, and slices large diffs into logical regions.
-2. **`_fan_out_router`** (implemented in [graph.py](src/prism_reviewer/agents/graph.py)): Routes each region to all three agent nodes concurrently.
-3. **Agent Council**:
-   - 👮 **Warden Node**: Evaluates vulnerabilities, exposed credentials, loose dependencies, and data leaks.
-   - 📐 **Architect Node**: Audits architectural design, design pattern compliance, performance traps (like N+1 queries), and scale limitations.
-   - 🔍 **Inspector Node**: Targets clean code compliance, readability, minor logic bugs, and syntax smells.
-4. **`verifier_node`** (implemented in [verifier.py](src/prism_reviewer/agents/verifier.py)): Performs double-guard filtering (hallucination checks & duplicate suppression).
-5. **`aggregator_node`** (implemented in [aggregator.py](src/prism_reviewer/agents/aggregator.py)): Sorts findings by severity (CRITICAL &rarr; MAJOR &rarr; ADVISORY) and renders the report.
+1. **`fetch_pull_request_comments`** (implemented in [github.py](src/prism_reviewer/services/github.py)): Queries previous inline review comment threads and general PR discussions via GitHub API, filtering for `MAJOR` and `CRITICAL` severity feedback (ignoring low-priority `ADVISORY` comments) to pass as conversation history.
+2. **`build_context_node`** (implemented in [nodes.py](src/prism_reviewer/agents/nodes.py)): Gathers directory profiles, runs AST scans on modified files, scans dependencies, parses usage references, and slices large diffs into logical regions.
+3. **`_fan_out_router`** (implemented in [graph.py](src/prism_reviewer/agents/graph.py)): Routes each region to all three agent nodes concurrently.
+4. **Agent Council**:
+   - 👮 **Warden Node**: Evaluates vulnerabilities, exposed credentials, loose dependencies, data leaks, and verifies if past security feedback was addressed.
+   - 📐 **Architect Node**: Audits architectural design, design pattern compliance, performance traps, and checks if past structural feedback was resolved.
+   - 🔍 **Inspector Node**: Targets clean code compliance, readability, minor logic bugs, and validates fixes for past logic findings.
+5. **`verifier_node`** (implemented in [verifier.py](src/prism_reviewer/agents/verifier.py)): Performs double-guard filtering (hallucination checks & duplicate suppression).
+6. **`aggregator_node`** (implemented in [aggregator.py](src/prism_reviewer/agents/aggregator.py)): Sorts findings by severity (CRITICAL &rarr; MAJOR &rarr; ADVISORY) and renders the report.
 
 ---
 
@@ -88,8 +92,8 @@ flowchart TD
     C --> F["Full PR Context + Full LLM Scan"]
     
     D --> G["Diff: previous_commit..HEAD"]
-    D --> H["Pass Full PR Touched Files + CodeLens AST Map"]
-    D --> I["LLM Evaluates New Diff with PR Context"]
+    D --> H["Pass Full PR Touched Files + CodeLens AST Map + Prior PR Comments (MAJOR/CRITICAL)"]
+    D --> I["LLM Evaluates New Diff with PR Context & Prior Discussion"]
 
     E --> J["Verifier Node & Signatures"]
     G --> J
@@ -97,7 +101,7 @@ flowchart TD
 ```
 
 - **Full PR Review Mode (`full`)**: Used on initial PR creation (`pull_request.opened`), milestone reviews, or manual trigger (`/prism full-review`). Compares `base_branch..HEAD`.
-- **Smart Incremental Mode (`incremental` / `auto`)**: Used on push updates (`pull_request.synchronize`). Evaluates only the newly modified commits (`previous_sha..HEAD`), while maintaining full PR awareness by injecting the complete PR touched file list and CodeLens AST dependency map into the prompt context.
+- **Smart Incremental Mode (`incremental` / `auto`)**: Used on push updates (`pull_request.synchronize`). Evaluates only the newly modified commits (`previous_sha..HEAD`), while maintaining full PR awareness by injecting the complete PR touched file list, CodeLens AST dependency map, and prior `MAJOR`/`CRITICAL` PR comment threads into the prompt context.
 
 ---
 
@@ -228,6 +232,8 @@ Prism Reviewer uses a centralized config system driven by [`src/prism_reviewer/p
 | --- | --- | --- |
 | `token` | `${GITHUB_TOKEN}` | GitHub Personal Access Token or Installation Token. |
 | `summary_mode` | `${PRISM_SUMMARY_MODE\|-update}` | Controls how the PR summary comment is posted on each run. `"update"` (default) edits the existing Prism Reviewer summary comment in-place. `"append"` posts a new summary comment on every push (legacy behaviour). |
+| `include_previous_comments` | `${PRISM_INCLUDE_PREVIOUS_COMMENTS\|-true}` | Enables fetching prior PR review comments & discussions for LLM prompt context. |
+| `max_previous_comments` | `${PRISM_MAX_PREVIOUS_COMMENTS\|-30}` | Maximum number of prior `MAJOR` & `CRITICAL` severity comments to include. |
 
 #### 7.1.2 Core LLM Configuration `[llm]`
 | Parameter | Default / Placeholder | Description |
@@ -447,7 +453,7 @@ Open or update any Pull Request. Prism Reviewer will automatically analyze your 
 
 ### 9.3 Customizing Bot Comment Identity
 
-By default, comments are posted under the standard **`github-actions[bot]`** identity with a prominent **`🌈 Prism Reviewer AI`** report header inside the comment body.
+By default, comments are posted under the standard **`github-actions[bot]`** identity with a prominent **`🌌 Vyoman Labs | 🌈 Prism Reviewer AI`** report header inside the comment body.
 
 If you prefer comments to be posted under a dedicated **GitHub App Bot Name** (e.g. `Prism Reviewer AI[bot]`):
 

@@ -40,13 +40,14 @@ def test_resolve_pr_api_details_success(tmp_path):
         "PR_NUMBER": "100",
     }
     with patch.dict(os.environ, env, clear=True):
-        with patch("prism_reviewer.services.github.GitHubAppBridge.fetch_pull_request_details") as mock_fetch:
+        with patch("prism_reviewer.services.github.GitHubAppBridge.fetch_pull_request_details") as mock_fetch, \
+             patch("prism_reviewer.services.github.GitHubAppBridge.fetch_pull_request_comments", return_value=""):
             mock_fetch.return_value = {
                 "title": "API PR Title",
                 "description": "API PR Description",
                 "number": 100,
             }
-            title, desc, pr_id = _resolve_pr_api_details(str(tmp_path), mock_logger)
+            title, desc, comments, pr_id = _resolve_pr_api_details(str(tmp_path), mock_logger)
             assert title == "API PR Title"
             assert desc == "API PR Description"
             assert pr_id == 100
@@ -56,7 +57,7 @@ def test_resolve_pr_api_details_missing_token(tmp_path):
     mock_logger = MagicMock()
     with patch.dict(os.environ, {}, clear=True):
         with patch("prism_reviewer.core.config.Config.github_token", return_value=None):
-            title, desc, pr_id = _resolve_pr_api_details(str(tmp_path), mock_logger)
+            title, desc, comments, pr_id = _resolve_pr_api_details(str(tmp_path), mock_logger)
             assert title == ""
             assert desc == ""
             assert pr_id is None
@@ -71,13 +72,14 @@ def test_resolve_pr_api_details_github_ref_fallback(tmp_path):
         "GITHUB_REF": "refs/pull/55/merge",
     }
     with patch.dict(os.environ, env, clear=True):
-        with patch("prism_reviewer.services.github.GitHubAppBridge.fetch_pull_request_details") as mock_fetch:
+        with patch("prism_reviewer.services.github.GitHubAppBridge.fetch_pull_request_details") as mock_fetch, \
+             patch("prism_reviewer.services.github.GitHubAppBridge.fetch_pull_request_comments", return_value=""):
             mock_fetch.return_value = {
                 "title": "Ref PR Title",
                 "description": "Ref PR Description",
                 "number": 55,
             }
-            title, desc, pr_id = _resolve_pr_api_details(str(tmp_path), mock_logger)
+            title, desc, comments, pr_id = _resolve_pr_api_details(str(tmp_path), mock_logger)
             assert title == "Ref PR Title"
             assert desc == "Ref PR Description"
             assert pr_id == 55
@@ -91,13 +93,14 @@ def test_resolve_pr_api_details_github_app_token(tmp_path):
         "PR_NUMBER": "200",
     }
     with patch.dict(os.environ, env, clear=True):
-        with patch("prism_reviewer.services.github.GitHubAppBridge.fetch_pull_request_details") as mock_fetch:
+        with patch("prism_reviewer.services.github.GitHubAppBridge.fetch_pull_request_details") as mock_fetch, \
+             patch("prism_reviewer.services.github.GitHubAppBridge.fetch_pull_request_comments", return_value=""):
             mock_fetch.return_value = {
                 "title": "App Token PR Title",
                 "description": "App Token PR Description",
                 "number": 200,
             }
-            title, desc, pr_id = _resolve_pr_api_details(str(tmp_path), mock_logger)
+            title, desc, comments, pr_id = _resolve_pr_api_details(str(tmp_path), mock_logger)
             assert title == "App Token PR Title"
             assert desc == "App Token PR Description"
             assert pr_id == 200

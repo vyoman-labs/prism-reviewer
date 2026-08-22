@@ -370,6 +370,16 @@ class TestPromptCachingAndTokenLogging:
         assert readme_idx < pr_ctx_idx
         assert pr_ctx_idx < git_diff_idx
 
+    def test_build_user_turn_includes_pr_comments(self) -> None:
+        """Verify _build_user_turn includes Prior Review Comments section when pr_comments is present."""
+        from prism_reviewer.agents.nodes import _build_user_turn
+        state = _make_state(
+            pr_comments="- **Inline Review on `main.py:10` [CRITICAL]**: Fix memory leak",
+        )
+        prompt = _build_user_turn(state, "warden")
+        assert "## Prior Review Comments & Discussion" in prompt
+        assert "Fix memory leak" in prompt
+
     def test_codelens_max_search_files_cap_defaults_to_25(self) -> None:
         """Verify build_context_node uses Config.codelens_max_search_files (25)."""
         from prism_reviewer.core.config import Config

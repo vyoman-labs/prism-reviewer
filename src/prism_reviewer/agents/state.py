@@ -79,6 +79,12 @@ class ReviewState(TypedDict):
     pr_description: str
     """Pull request description/body (empty string for local runs)."""
 
+    pr_comments: NotRequired[str]
+    """
+    Formatted Markdown string containing prior PR review comments and discussion
+    (filtered for MAJOR and CRITICAL severities).
+    """
+
     repo_structure: str
     """Flat list of files tracked by git (capped at 100 lines)."""
 

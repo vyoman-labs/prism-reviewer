@@ -22,13 +22,13 @@ from .utils.signature import get_finding_signature
 from .monitoring.manager import monitoring_manager
 
 
-def _resolve_pr_api_details(repo_path: str, logger: Any) -> tuple[str, str, int | None]:
+def _resolve_pr_api_details(repo_path: str, logger: Any) -> tuple[str, str, str, int | None]:
     """
-    Attempts to fetch PR title, description, and ID from the GitHub API using environment
-    variables or git repository remote information.
+    Attempts to fetch PR title, description, previous comments, and ID from the GitHub API
+    using environment variables or git repository remote information.
 
     Returns:
-        tuple of (pr_title, pr_description, pr_id)
+        tuple of (pr_title, pr_description, pr_comments, pr_id)
     """
     app_token = os.environ.get("GITHUB_APP_TOKEN")
     env_token = os.environ.get("GITHUB_TOKEN")
@@ -37,7 +37,7 @@ def _resolve_pr_api_details(repo_path: str, logger: Any) -> tuple[str, str, int 
     token = app_token or env_token or config_token
     if not token:
         logger.warning("No GITHUB_TOKEN or GITHUB_APP_TOKEN set; skipping fetching PR details from GitHub API.")
-        return "", "", None
+        return "", "", "", None
 
     if app_token:
         logger.info("Using GitHub App token (GITHUB_APP_TOKEN) to fetch PR details from GitHub API.")
@@ -68,7 +68,7 @@ def _resolve_pr_api_details(repo_path: str, logger: Any) -> tuple[str, str, int 
 
     if not repo_name:
         logger.warning("Could not determine repository name; skipping fetching PR details from GitHub API.")
-        return "", "", None
+        return "", "", "", None
 
     pr_number_str = os.environ.get("PR_NUMBER")
     if not pr_number_str:
@@ -91,23 +91,27 @@ def _resolve_pr_api_details(repo_path: str, logger: Any) -> tuple[str, str, int 
 
     if not pr_number_str:
         logger.warning("Could not determine PR number; skipping fetching PR details from GitHub API.")
-        return "", "", None
+        return "", "", "", None
 
     try:
         pr_number = int(pr_number_str)
     except ValueError:
         logger.warning(f"Invalid PR number format: '{pr_number_str}'")
-        return "", "", None
+        return "", "", "", None
 
     try:
         from .services.github import GitHubAppBridge
         bridge = GitHubAppBridge(token)
         details = bridge.fetch_pull_request_details(repo_name, pr_number)
+        pr_comments = ""
+        if Config.include_previous_comments():
+            max_c = Config.max_previous_comments()
+            pr_comments = bridge.fetch_pull_request_comments(repo_name, pr_number, max_comments=max_c)
         logger.info(f"Successfully fetched PR #{pr_number} details from API: '{details.get('title')}'")
-        return details.get("title", ""), details.get("description", ""), pr_number
+        return details.get("title", ""), details.get("description", ""), pr_comments, pr_number
     except Exception as e:
         logger.warning(f"Failed to fetch PR details from GitHub API: {e}")
-        return "", "", pr_number
+        return "", "", "", pr_number
 
 
 def _resolve_git_diff_mode_and_content(
@@ -419,8 +423,8 @@ def main(argv=None):
             repo_path, args, logger
         )
 
-        # Always attempt to fetch PR title, description, and ID from GitHub API
-        pr_title, pr_description, pr_id = _resolve_pr_api_details(repo_path, logger)
+        # Always attempt to fetch PR title, description, comments, and ID from GitHub API
+        pr_title, pr_description, pr_comments, pr_id = _resolve_pr_api_details(repo_path, logger)
 
         # Build initial state — build_context_node will populate the codelens fields
         initial_state: ReviewState = {
@@ -428,6 +432,7 @@ def main(argv=None):
             "git_diff": diff_content,
             "pr_title": pr_title,
             "pr_description": pr_description,
+            "pr_comments": pr_comments,
             "repo_structure": "",
             "ast_map": {},
             "codelens_dep_summary": "",

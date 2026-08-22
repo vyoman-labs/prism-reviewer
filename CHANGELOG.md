@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Vyoman Labs Developer Attribution & Summary Header Branding**: Updated PR summary report headers to `# 🌌 Vyoman Labs | 🌈 Prism Reviewer AI Code Review Report` and added **Vyoman Labs** developer attribution across package metadata (`pyproject.toml`, `action.yml`) and documentation.
 - **Conditional Telemetry Package Installation in GitHub Action**: Added a dedicated `Install Telemetry Dependencies (Langfuse / OpenTelemetry)` step in `action.yml` that conditionally installs telemetry packages based on action inputs (`litellm-callbacks`, `enable-monitoring`) or environment variables (`LANGFUSE_*`, `OTEL_*`, `PRISM_MONITORING_*`), while skipping installation when monitoring is disabled.
 - **Package Extras for Telemetry**: Added `langfuse`, `otel`, and `monitoring` optional dependency extras in `pyproject.toml`.
 
