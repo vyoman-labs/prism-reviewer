@@ -36,6 +36,14 @@ inputs:
     description: 'Execution mode for review agents (parallel or sequential)'
     required: false
     default: 'parallel'
+  litellm-callbacks:
+    description: 'LiteLLM telemetry callbacks to enable (e.g. "langfuse", "otel", "langfuse,otel")'
+    required: false
+    default: ''
+  enable-monitoring:
+    description: 'Control telemetry package installation ("auto", "true", or "false")'
+    required: false
+    default: 'auto'
 
 runs:
   using: 'composite'
@@ -50,6 +58,53 @@ runs:
       run: |
         python -m pip install --upgrade pip
         pip install "${{ github.action_path }}" || pip install prism-reviewer || pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ prism-reviewer
+
+    - name: Install Telemetry Dependencies (Langfuse / OpenTelemetry)
+      shell: bash
+      env:
+        LITELLM_CALLBACKS: ${{ inputs.litellm-callbacks }}
+        ENABLE_MONITORING: ${{ inputs.enable-monitoring }}
+        PRISM_MONITORING_LITELLM_CALLBACKS: ${{ env.PRISM_MONITORING_LITELLM_CALLBACKS }}
+        LANGFUSE_PUBLIC_KEY: ${{ env.LANGFUSE_PUBLIC_KEY }}
+        LANGFUSE_SECRET_KEY: ${{ env.LANGFUSE_SECRET_KEY }}
+        OTEL_EXPORTER_OTLP_ENDPOINT: ${{ env.OTEL_EXPORTER_OTLP_ENDPOINT }}
+      run: |
+        CALLBACKS_LOWER=$(echo "${LITELLM_CALLBACKS:-$PRISM_MONITORING_LITELLM_CALLBACKS}" | tr '[:upper:]' '[:lower:]')
+        MONITORING_LOWER=$(echo "${ENABLE_MONITORING}" | tr '[:upper:]' '[:lower:]')
+
+        if [ "$MONITORING_LOWER" = "false" ]; then
+          echo "Telemetry monitoring explicitly disabled via enable-monitoring=false. Skipping telemetry packages."
+          exit 0
+        fi
+
+        NEED_LANGFUSE=false
+        NEED_OTEL=false
+
+        if [[ "$CALLBACKS_LOWER" == *"langfuse"* ]] || [ -n "$LANGFUSE_PUBLIC_KEY" ] || [ -n "$LANGFUSE_SECRET_KEY" ]; then
+          NEED_LANGFUSE=true
+        fi
+
+        if [[ "$CALLBACKS_LOWER" == *"otel"* ]] || [[ "$CALLBACKS_LOWER" == *"opentelemetry"* ]] || [ -n "$OTEL_EXPORTER_OTLP_ENDPOINT" ]; then
+          NEED_OTEL=true
+        fi
+
+        if [ "$MONITORING_LOWER" = "true" ] && [ "$NEED_LANGFUSE" = "false" ] && [ "$NEED_OTEL" = "false" ]; then
+          NEED_LANGFUSE=true
+          NEED_OTEL=true
+        fi
+
+        if [ "$NEED_LANGFUSE" = "true" ] && [ "$NEED_OTEL" = "true" ]; then
+          echo "Installing telemetry packages for Langfuse & OpenTelemetry..."
+          pip install "${{ github.action_path }}[monitoring]" || pip install prism-reviewer[monitoring] || pip install "langfuse>=2.0.0,<3.0.0" opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp
+        elif [ "$NEED_LANGFUSE" = "true" ]; then
+          echo "Installing telemetry packages for Langfuse..."
+          pip install "${{ github.action_path }}[langfuse]" || pip install prism-reviewer[langfuse] || pip install "langfuse>=2.0.0,<3.0.0"
+        elif [ "$NEED_OTEL" = "true" ]; then
+          echo "Installing telemetry packages for OpenTelemetry..."
+          pip install "${{ github.action_path }}[otel]" || pip install prism-reviewer[otel] || pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp
+        else
+          echo "No telemetry callbacks or credentials detected. Skipping telemetry package installation."
+        fi
 
     - name: Generate GitHub App Token
       id: app-token
@@ -93,6 +148,7 @@ runs:
         GITHUB_TOKEN: ${{ steps.resolve-token.outputs.token }}
         GITHUB_APP_TOKEN: ${{ steps.resolve-token.outputs.app_token }}
         AGENTS_MODE: ${{ inputs.agents-mode }}
+        PRISM_MONITORING_LITELLM_CALLBACKS: ${{ inputs.litellm-callbacks || env.PRISM_MONITORING_LITELLM_CALLBACKS }}
       run: |
         BASE_TARGET="${{ inputs.base-ref }}"
         if [ -z "$BASE_TARGET" ]; then

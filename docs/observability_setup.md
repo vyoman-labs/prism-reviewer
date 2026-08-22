@@ -47,22 +47,19 @@ Langfuse is a purpose-built LLM observability platform that tracks generation tr
      ```bash
      pip install "langfuse>=2.0.0,<3.0.0"
      ```
-   - **GitHub Actions Workflows**:
-     Add an explicit `pip install "langfuse>=2.0.0,<3.0.0"` step prior to executing the action:
-     ```yaml
-     - name: Install Telemetry Dependencies
-       run: pip install "langfuse>=2.0.0,<3.0.0"
-
-     - name: Run Prism Reviewer
-       uses: vyoman-labs/prism-reviewer@v1
-       with:
-         llm-api-key: ${{ secrets.LLM_PROVIDER_API_KEY }}
-       env:
-         PRISM_MONITORING_LITELLM_CALLBACKS: "langfuse"
-         LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
-         LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
-         LANGFUSE_HOST: "https://cloud.langfuse.com"
-     ```
+    - **GitHub Actions Workflows**:
+      The GitHub Action automatically detects telemetry credentials and installs required telemetry packages in a dedicated step. You can enable callbacks using the `litellm-callbacks` action input or environment variables:
+      ```yaml
+      - name: Run Prism Reviewer
+        uses: vyoman-labs/prism-reviewer@v1
+        with:
+          llm-api-key: ${{ secrets.LLM_PROVIDER_API_KEY }}
+          litellm-callbacks: "langfuse"
+        env:
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          LANGFUSE_HOST: "https://cloud.langfuse.com"
+      ```
 5. **Configure Environment Variables**: Add keys to `.env` or export them:
    ```env
    LANGFUSE_PUBLIC_KEY="pk-lf-..."

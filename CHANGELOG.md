@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Conditional Telemetry Package Installation in GitHub Action**: Added a dedicated `Install Telemetry Dependencies (Langfuse / OpenTelemetry)` step in `action.yml` that conditionally installs telemetry packages based on action inputs (`litellm-callbacks`, `enable-monitoring`) or environment variables (`LANGFUSE_*`, `OTEL_*`, `PRISM_MONITORING_*`), while skipping installation when monitoring is disabled.
+- **Package Extras for Telemetry**: Added `langfuse`, `otel`, and `monitoring` optional dependency extras in `pyproject.toml`.
+
 ## [1.1.0] - 2026-08-21
 
 
