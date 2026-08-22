@@ -23,14 +23,54 @@ jobs:
           fetch-depth: 0
 
       - name: Run Prism Reviewer AI
-        uses: vyoman-labs/prism-reviewer@v1.0.0
+        uses: vyoman-labs/prism-reviewer@v1.1.0
         with:
-          # Required: API key for your LLM Provider (Gemini, OpenRouter, OpenAI, Anthropic, etc.)
+          # =========================================================================
+          # Required Inputs
+          # =========================================================================
+          # API key for your LLM Provider (Gemini, OpenRouter, OpenAI, Anthropic, etc.)
           llm-api-key: ${{ secrets.LLM_PROVIDER_API_KEY }}
 
-          # Optional: Model identifier (defaults to gemini/gemini-3.1-flash-lite)
-          llm-model-name: 'gemini/gemini-3.1-flash-lite'
+          # =========================================================================
+          # Optional LLM & Execution Inputs
+          # =========================================================================
+          # LiteLLM model identifier (defaults to gemini/gemini-3.1-flash-lite)
+          # llm-model-name: 'gemini/gemini-3.1-flash-lite'
 
-          # Optional: Custom GitHub token (GitHub App Installation token, PAT, or default GITHUB_TOKEN)
-          # Default: ${{ github.token }} (posts comment as github-actions[bot])
-          github-token: github-token: ${{ steps.resolve-token.outputs.token }}
+          # Base branch or commit reference for comparison (defaults to github.base_ref)
+          # base-ref: ${{ github.base_ref }}
+
+          # Execution mode for review agents ('parallel' or 'sequential', defaults to 'parallel')
+          # agents-mode: 'parallel'
+
+          # Custom GitHub token (PAT, App installation token, or default GITHUB_TOKEN)
+          # Default: ${{ github.token }} (posts comments as github-actions[bot])
+          # github-token: ${{ secrets.GITHUB_TOKEN }}
+
+          # =========================================================================
+          # Optional GitHub App Authentication Inputs
+          # (Used to generate installation token if github-token is not set)
+          # =========================================================================
+          # app-id: ${{ secrets.PRISM_REVIEWER_APP_ID }}
+          # private-key: ${{ secrets.PRISM_REVIEWER_PRIVATE_KEY }}
+          # owner: ${{ github.repository_owner }}
+
+          # =========================================================================
+          # Optional LLM Observability & Token Usage Monitoring Inputs
+          # =========================================================================
+          # LiteLLM telemetry callbacks to enable (e.g. 'langfuse', 'otel', 'langfuse,otel')
+          # litellm-callbacks: 'langfuse'
+
+          # Control telemetry package installation ('auto', 'true', or 'false', defaults to 'auto')
+          # enable-monitoring: 'auto'
+
+        # =========================================================================
+        # Optional Telemetry & Observability Credentials
+        # Pass telemetry secrets/host endpoints here if using Langfuse or OpenTelemetry
+        # =========================================================================
+        # env:
+        #   LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+        #   LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+        #   LANGFUSE_HOST: "https://cloud.langfuse.com" # or self-hosted endpoint URL
+        #   OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}
+
