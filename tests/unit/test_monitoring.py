@@ -310,5 +310,98 @@ def test_langfuse_auth_check_error_logging(monkeypatch, caplog):
     assert "Invalid credentials 401" in caplog.text
 
 
+def test_token_usage_manager_accumulation_and_log_total_usage(caplog):
+    manager = TokenUsageManager()
+    evt1 = TokenUsageEvent(
+        model="gpt-4o",
+        prompt_tokens=100,
+        completion_tokens=50,
+        total_tokens=150,
+        duration_seconds=1.0,
+    )
+    evt2 = TokenUsageEvent(
+        model="claude-3-5-sonnet",
+        prompt_tokens=200,
+        completion_tokens=80,
+        total_tokens=280,
+        duration_seconds=1.5,
+    )
+
+    manager.dispatch(evt1)
+    manager.dispatch(evt2)
+
+    assert manager.total_prompt_tokens == 300
+    assert manager.total_completion_tokens == 130
+    assert manager.total_tokens == 430
+    assert manager.request_count == 2
+
+    with caplog.at_level("INFO"):
+        p, c, t, reqs = manager.log_total_usage()
+
+    assert p == 300
+    assert c == 130
+    assert t == 430
+    assert reqs == 2
+
+    assert "Final PR Token Telemetry Summary — Input Tokens: 300, Output Tokens: 130, Total Tokens: 430 (across 2 LLM requests)" in caplog.text
+
+    # Auto-reset after log_total_usage
+    assert manager.total_prompt_tokens == 0
+    assert manager.total_completion_tokens == 0
+    assert manager.total_tokens == 0
+    assert manager.request_count == 0
+
+
+def test_flush_callbacks_logs_final_summary_even_when_unconfigured(caplog):
+    manager = TokenUsageManager()
+    evt = TokenUsageEvent(
+        model="gemini-1.5-pro",
+        prompt_tokens=150,
+        completion_tokens=50,
+        total_tokens=200,
+        duration_seconds=0.8,
+    )
+    manager.dispatch(evt)
+
+    with caplog.at_level("INFO"):
+        manager.flush_callbacks()
+
+    assert "Final PR Token Telemetry Summary — Input Tokens: 150, Output Tokens: 50, Total Tokens: 200 (across 1 LLM request)" in caplog.text
+    assert manager.total_tokens == 0
+
+
+def test_token_usage_manager_concurrent_dispatch():
+    import threading
+
+    manager = TokenUsageManager()
+    events_per_thread = 50
+    thread_count = 10
+
+    def worker():
+        for _ in range(events_per_thread):
+            manager.dispatch(
+                TokenUsageEvent(
+                    model="test-model",
+                    prompt_tokens=10,
+                    completion_tokens=5,
+                    total_tokens=15,
+                    duration_seconds=0.1,
+                )
+            )
+
+    threads = [threading.Thread(target=worker) for _ in range(thread_count)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    expected_requests = thread_count * events_per_thread
+    assert manager.request_count == expected_requests
+    assert manager.total_prompt_tokens == expected_requests * 10
+    assert manager.total_completion_tokens == expected_requests * 5
+    assert manager.total_tokens == expected_requests * 15
+
+
+
 
 

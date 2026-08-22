@@ -222,6 +222,12 @@ You can enable both Langfuse and OpenTelemetry at the same time to get both spec
 
 ## 5. Verifying Telemetry & Token Logs
 
+### Final PR Token Telemetry Summary Log
+At the conclusion of a PR review process (before flushing telemetry queues), `prism-reviewer` logs a final summary of total input and output token consumption across all LLM requests:
+```text
+📊 Final PR Token Telemetry Summary — Input Tokens: 1420, Output Tokens: 310, Total Tokens: 1730 (across 3 LLM requests)
+```
+
 ### Checking Local JSONL Audit Logs
 Inspect `.prism_reviewer/token_usage.jsonl`:
 ```bash

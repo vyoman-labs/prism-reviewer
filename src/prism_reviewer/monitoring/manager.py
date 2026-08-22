@@ -1,5 +1,6 @@
 import os
-from typing import Any, Dict, List, cast
+import threading
+from typing import Any, Dict, List, Tuple, cast
 import litellm
 from litellm.integrations.custom_logger import CustomLogger
 
@@ -51,13 +52,51 @@ class TokenUsageManager:
     """
     Central manager for LLM token usage monitoring and observability integrations.
     Dispatches events to native observers and configures LiteLLM callbacks (e.g. Langfuse, OpenTelemetry).
+    Accumulates overall PR token telemetry across LLM completion requests.
     """
 
     def __init__(self) -> None:
-        """Initializes an empty TokenUsageManager instance."""
+        """Initializes an empty TokenUsageManager instance with token accumulators."""
         self._observers: List[BaseTokenObserver] = []
         self._configured: bool = False
         self._active_callbacks: List[str] = []
+        self._total_prompt_tokens: int = 0
+        self._total_completion_tokens: int = 0
+        self._total_tokens: int = 0
+        self._request_count: int = 0
+        self._lock: threading.Lock = threading.Lock()
+
+    @property
+    def total_prompt_tokens(self) -> int:
+        """Returns the accumulated count of prompt (input) tokens."""
+        with self._lock:
+            return self._total_prompt_tokens
+
+    @property
+    def total_completion_tokens(self) -> int:
+        """Returns the accumulated count of completion (output) tokens."""
+        with self._lock:
+            return self._total_completion_tokens
+
+    @property
+    def total_tokens(self) -> int:
+        """Returns the accumulated total count of tokens."""
+        with self._lock:
+            return self._total_tokens
+
+    @property
+    def request_count(self) -> int:
+        """Returns the accumulated count of LLM completion requests."""
+        with self._lock:
+            return self._request_count
+
+    def reset_totals(self) -> None:
+        """Resets accumulated PR token usage counters to zero."""
+        with self._lock:
+            self._total_prompt_tokens = 0
+            self._total_completion_tokens = 0
+            self._total_tokens = 0
+            self._request_count = 0
 
     def register_observer(self, observer: BaseTokenObserver) -> None:
         """
@@ -75,11 +114,17 @@ class TokenUsageManager:
 
     def dispatch(self, event: TokenUsageEvent) -> None:
         """
-        Dispatches a TokenUsageEvent to all registered native observers.
+        Dispatches a TokenUsageEvent to all registered native observers and accumulates totals.
 
         Args:
             event: TokenUsageEvent to publish.
         """
+        with self._lock:
+            self._total_prompt_tokens += event.prompt_tokens
+            self._total_completion_tokens += event.completion_tokens
+            self._total_tokens += event.total_tokens
+            self._request_count += 1
+
         for observer in self._observers:
             try:
                 observer.on_token_usage(event)
@@ -214,11 +259,38 @@ class TokenUsageManager:
         else:
             logger.info(f"OpenTelemetry telemetry callback configured successfully (endpoint: {endpoint}, service: {service_name}).")
 
+    def log_total_usage(self) -> Tuple[int, int, int, int]:
+        """
+        Logs the final accumulated PR token telemetry summary (input and output tokens).
+        Automatically resets accumulated token counters afterwards.
+
+        Returns:
+            Tuple of (total_prompt_tokens, total_completion_tokens, total_tokens, request_count) prior to reset.
+        """
+        with self._lock:
+            prompt_tokens = self._total_prompt_tokens
+            completion_tokens = self._total_completion_tokens
+            total_tokens = self._total_tokens
+            req_count = self._request_count
+
+        logger.info(
+            f"📊 Final PR Token Telemetry Summary — "
+            f"Input Tokens: {prompt_tokens}, "
+            f"Output Tokens: {completion_tokens}, "
+            f"Total Tokens: {total_tokens} "
+            f"(across {req_count} LLM request{'s' if req_count != 1 else ''})"
+        )
+
+        self.reset_totals()
+        return prompt_tokens, completion_tokens, total_tokens, req_count
+
     def flush_callbacks(self) -> None:
         """
-        Flushes buffered telemetry queues for active LiteLLM callbacks (e.g. Langfuse, OpenTelemetry).
-        Logs explicit success or failure messages for the metric flush process.
+        Logs final total PR token usage summary and flushes buffered telemetry queues
+        for active LiteLLM callbacks (e.g. Langfuse, OpenTelemetry).
         """
+        self.log_total_usage()
+
         if not self._configured:
             return
 

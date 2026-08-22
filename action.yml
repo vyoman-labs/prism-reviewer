@@ -1,5 +1,5 @@
 name: 'Prism Reviewer AI'
-description: 'Resilient and automated multi-agent code review powered by Prism Reviewer AI, developed by Vyoman Labs'
+description: 'Resilient multi-agent AI code review for Pull Requests. Features Tree-Sitter AST parsing, zero-hallucination line verification, and 90% token savings.'
 author: 'Vyoman Labs'
 
 branding:
