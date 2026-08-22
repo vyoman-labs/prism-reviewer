@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Prior PR Comments & Discussion Context**: Added automatic fetching of prior PR review comments and discussion history (`GitHubAppBridge.fetch_pull_request_comments`) during PR updates. Injects conversation context into prompt memory so LLM agents (Warden, Architect, Inspector) can verify whether past findings were resolved in the latest diff and avoid re-flagging agreed decisions.
+- **Conditional Severity Filtering for PR Comments**: Added `include_previous_comments` (default `true`) and `max_previous_comments` (default `30`) under `[github]` in `prism_reviewer.toml` (`PRISM_INCLUDE_PREVIOUS_COMMENTS`, `PRISM_MAX_PREVIOUS_COMMENTS`). When total PR comments exceed `max_previous_comments`, severity filtering automatically prioritizes `CRITICAL` and `MAJOR` comments over low-priority `ADVISORY` comments.
 - **Vyoman Labs Developer Attribution & Summary Header Branding**: Updated PR summary report headers to `# 🌌 Vyoman Labs | 🌈 Prism Reviewer AI Code Review Report` and added **Vyoman Labs** developer attribution across package metadata (`pyproject.toml`, `action.yml`) and documentation.
 - **Conditional Telemetry Package Installation in GitHub Action**: Added a dedicated `Install Telemetry Dependencies (Langfuse / OpenTelemetry)` step in `action.yml` that conditionally installs telemetry packages based on action inputs (`litellm-callbacks`, `enable-monitoring`) or environment variables (`LANGFUSE_*`, `OTEL_*`, `PRISM_MONITORING_*`), while skipping installation when monitoring is disabled.
 - **Package Extras for Telemetry**: Added `langfuse`, `otel`, and `monitoring` optional dependency extras in `pyproject.toml`.
